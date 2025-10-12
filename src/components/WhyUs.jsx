@@ -1,6 +1,7 @@
 import React from 'react';
 import { Quote } from 'lucide-react';
 
+import OwnerImg from '../assets/Images/owner.png';
 const TestimonialSection = () => {
   return (
     <section className="py-20 sm:py-28 bg-gradient-to-b from-white to-gray-50">
@@ -21,10 +22,10 @@ const TestimonialSection = () => {
           <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12 bg-white rounded-3xl shadow-2xl overflow-hidden p-8 lg:p-12">
             
             {/* Image Section */}
-            <div className="w-full lg:w-5/12 flex-shrink-0">
+            <div className="w-full lg:w-6/12 flex-shrink-0">
               <div className="relative aspect-square rounded-2xl overflow-hidden shadow-xl">
                 <img 
-                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
+                  src= {OwnerImg}
                   alt="Guest testimonial"
                   className="w-full h-full object-cover"
                 />
@@ -36,12 +37,12 @@ const TestimonialSection = () => {
               <Quote className="w-12 h-12 text-[#008DDA] opacity-50" />
               
               <blockquote className="text-2xl sm:text-3xl lg:text-4xl text-gray-900 leading-relaxed font-serif">
-                "I was skeptical, but this experience completely transformed the way I think about luxury travel. The properties are so beautifully curated and the locations are absolutely breathtaking. I can't imagine booking anywhere else."
+                "Our resort is more than just a place to stay — it’s a place to create memories, reconnect with loved ones, and experience the best of nature and hospitality."
               </blockquote>
               
               <div className="pt-4">
-                <p className="text-xl font-semibold text-gray-900">Michael Chen</p>
-                <p className="text-base text-[#008DDA] font-medium">Travel Enthusiast</p>
+                <p className="text-xl font-semibold text-gray-900">Taher Zabuawala</p>
+                <p className="text-base text-[#008DDA] font-medium">Owner and Entrepreneur</p>
               </div>
             </div>
           </div>
@@ -78,6 +79,45 @@ const TestimonialSection = () => {
               <div>
                 <p className="font-semibold text-gray-900">Raj Kapoor</p>
                 <p className="text-sm text-gray-600">Entrepreneur from Mumbai</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Testimonial Card 3 */}
+          <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <p className="text-lg text-gray-700 leading-relaxed mb-6">
+              This experience transformed me completely. The mountain retreat offered the perfect balance of adventure and tranquility.
+            </p>
+            <div className="flex items-center gap-4">
+              <div>
+                <p className="font-semibold text-gray-900">Sarah Peterson</p>
+                <p className="text-sm text-gray-600">Photographer & Explorer</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Testimonial Card 3 */}
+          <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <p className="text-lg text-gray-700 leading-relaxed mb-6">
+              This experience transformed me completely. The mountain retreat offered the perfect balance of adventure and tranquility.
+            </p>
+            <div className="flex items-center gap-4">
+              <div>
+                <p className="font-semibold text-gray-900">Sarah Peterson</p>
+                <p className="text-sm text-gray-600">Photographer & Explorer</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Testimonial Card 3 */}
+          <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <p className="text-lg text-gray-700 leading-relaxed mb-6">
+              This experience transformed me completely. The mountain retreat offered the perfect balance of adventure and tranquility.
+            </p>
+            <div className="flex items-center gap-4">
+              <div>
+                <p className="font-semibold text-gray-900">Sarah Peterson</p>
+                <p className="text-sm text-gray-600">Photographer & Explorer</p>
               </div>
             </div>
           </div>

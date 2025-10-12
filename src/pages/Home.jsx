@@ -6,6 +6,7 @@ import About from '../components/About';
 import Locations from '../components/Locations';
 import BookingDemo from '../components/BookingSection';
 import WhyUs from '../components/WhyUs';
+import Footer from '../components/Footer';
 
 function Home() {
   return (
@@ -17,6 +18,7 @@ function Home() {
         <Locations />
         <BookingDemo />
         <WhyUs />
+        < Footer />
     </div>
   )
 }
