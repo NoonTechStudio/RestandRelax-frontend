@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Star, ArrowRight } from 'lucide-react';
 import axios from 'axios';
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 
 const API_BASE_URL = import.meta.env.VITE_API_CONNECTION_HOST;
 
-const Location = () => {
+const Locations = () => {
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -94,6 +96,8 @@ const Location = () => {
   }
 
   return (
+    <>
+    <Navbar/>
     <section className="py-20 sm:py-28 bg-gradient-to-b from-gray-50 to-white overflow-hidden">
       
       {/* Header Section */}
@@ -192,7 +196,9 @@ const Location = () => {
 
       </div>
     </section>
+    <Footer/>
+    </>
   );
 };
 
-export default Location;
+export default Locations;
