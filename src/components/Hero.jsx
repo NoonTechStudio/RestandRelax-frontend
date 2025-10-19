@@ -18,22 +18,22 @@ const images = [
 
 const Hero = () => {
   return (
-    <section className="relative min-h-[100vh] flex flex-col items-center justify-center bg-white overflow-hidden">
+    <section className="relative h-auto pt-20 pb-10 md:min-h-screen md:pt-24 flex flex-col items-center justify-center bg-white overflow-hidden">
       {/* Title section with animation */}
       <motion.div
-        className="w-full text-center py-8"
+        className="w-full text-center py-4" // Reduced vertical padding
         initial={{ opacity: 0, y: -50 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1.2, delay: 0.3 }}
       >
-        <h1 className="text-6xl md:text-9xl lg:text-10xl mt-10 font-serif text-black  tracking-tight leading-none">
+        <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-serif text-black tracking-tight leading-snug"> 
           Discover Peace
         </h1>
       </motion.div>
 
       {/* Image Swiper section with refined animation */}
       <motion.div
-        className="w-[90%] md:w-[80%] lg:w-[70%] max-w-6xl rounded-2xl shadow-4xl overflow-hidden"
+        className="w-[95%] sm:w-[90%] md:w-[80%] lg:w-[70%] max-w-6xl rounded-xl sm:rounded-2xl shadow-4xl overflow-hidden mt-4" // Removed bottom margin, added small top margin
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1.5, delay: 0.8 }}
@@ -48,7 +48,7 @@ const Hero = () => {
             bulletActiveClass: 'swiper-pagination-bullet-active bg-white',
             bulletClass: 'swiper-pagination-bullet bg-gray-400'
           }}
-          className="w-full h-[500px] md:h-[600px] lg:h-[700px]"
+          className="w-full h-[300px] sm:h-[400px] md:h-[500px] lg:h-[600px] xl:h-[700px]"
         >
           {images.map((src, index) => (
             <SwiperSlide key={index}>

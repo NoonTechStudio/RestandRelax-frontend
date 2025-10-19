@@ -41,7 +41,7 @@ const TestimonialSection = () => {
               </blockquote>
               
               <div className="pt-4">
-                <p className="text-xl font-semibold text-gray-900">Taher Zabuawala</p>
+                <p className="text-xl font-semibold text-gray-900">Taher & Ajab Zabuawala</p>
                 <p className="text-base text-[#008DDA] font-medium">Owner and Entrepreneur</p>
               </div>
             </div>
@@ -57,80 +57,80 @@ const TestimonialSection = () => {
         {/* Testimonials Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           
-          {/* Testimonial Card 1 */}
+          {/* Testimonial Card 1 - Focused on Events/Wedding */}
           <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
             <p className="text-lg text-gray-700 leading-relaxed mb-6">
-              In the realm of luxury getaways, some experiences are just very special. Staying at Misty-Wood was one of them.
+              The perfect wedding destination! The team at Rest and Relax handled everything flawlessly, making our big day in Vadodara absolutely magical and stress-free.
             </p>
             <div className="flex items-center gap-4">
               <div>
-                <p className="font-semibold text-gray-900">Alexandra Anderson</p>
-                <p className="text-sm text-gray-600">Designer at Stellar Co.</p>
+                <p className="font-semibold text-gray-900">Priya & Aarav Patel</p>
+                <p className="text-sm text-gray-600">Newlyweds from Ahmedabad</p>
               </div>
             </div>
           </div>
 
-          {/* Testimonial Card 2 */}
+          {/* Testimonial Card 2 - Focused on Corporate/Team Building */}
           <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
             <p className="text-lg text-gray-700 leading-relaxed mb-6">
-              Your expectations will fly sky high. The Mediterranean villa was absolutely stunning and exceeded everything I imagined.
+              We hosted our annual corporate retreat here, and it was outstanding! The peaceful environment and professional facilities were ideal for team building.
             </p>
             <div className="flex items-center gap-4">
               <div>
                 <p className="font-semibold text-gray-900">Raj Kapoor</p>
-                <p className="text-sm text-gray-600">Entrepreneur from Mumbai</p>
+                <p className="text-sm text-gray-600">CEO, Tech Innovations Pvt. Ltd.</p>
               </div>
             </div>
           </div>
 
-          {/* Testimonial Card 3 */}
+          {/* Testimonial Card 3 - Focused on Family/Picnic */}
           <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
             <p className="text-lg text-gray-700 leading-relaxed mb-6">
-              This experience transformed me completely. The mountain retreat offered the perfect balance of adventure and tranquility.
+              A fantastic spot for a family picnic! The kids loved the open space, and the peaceful location near Vadodara was a wonderful escape from the city hustle.
             </p>
             <div className="flex items-center gap-4">
               <div>
-                <p className="font-semibold text-gray-900">Sarah Peterson</p>
-                <p className="text-sm text-gray-600">Photographer & Explorer</p>
+                <p className="font-semibold text-gray-900">Meena Sharma</p>
+                <p className="text-sm text-gray-600">Homemaker from Baroda</p>
               </div>
             </div>
           </div>
 
-          {/* Testimonial Card 3 */}
+          {/* Testimonial Card 4 - General praise/location */}
           <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
             <p className="text-lg text-gray-700 leading-relaxed mb-6">
-              This experience transformed me completely. The mountain retreat offered the perfect balance of adventure and tranquility.
+              The property is stunning and beautifully maintained. It truly is a haven of relaxation, making it the top choice for our events in the Gujarat area.
             </p>
             <div className="flex items-center gap-4">
               <div>
-                <p className="font-semibold text-gray-900">Sarah Peterson</p>
-                <p className="text-sm text-gray-600">Photographer & Explorer</p>
+                <p className="font-semibold text-gray-900">Vikram Singh</p>
+                <p className="text-sm text-gray-600">Event Planner, VMS Events</p>
               </div>
             </div>
           </div>
 
-          {/* Testimonial Card 3 */}
+          {/* Testimonial Card 5 - Event service focus */}
           <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
             <p className="text-lg text-gray-700 leading-relaxed mb-6">
-              This experience transformed me completely. The mountain retreat offered the perfect balance of adventure and tranquility.
+              The service was impeccable. Every detail, from the catering to the setup for our conference, was handled with professionalism and a smile. Highly recommend!
             </p>
             <div className="flex items-center gap-4">
               <div>
-                <p className="font-semibold text-gray-900">Sarah Peterson</p>
-                <p className="text-sm text-gray-600">Photographer & Explorer</p>
+                <p className="font-semibold text-gray-900">Sonal Desai</p>
+                <p className="text-sm text-gray-600">Marketing Director, Global Soft</p>
               </div>
             </div>
           </div>
 
-          {/* Testimonial Card 3 */}
+          {/* Testimonial Card 6 - Cultural/Heritage focus */}
           <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
             <p className="text-lg text-gray-700 leading-relaxed mb-6">
-              This experience transformed me completely. The mountain retreat offered the perfect balance of adventure and tranquility.
+              Choosing a venue that respected the rich culture of Vadodara was key for us. This location provided the perfect mix of modern amenities and local charm.
             </p>
             <div className="flex items-center gap-4">
               <div>
-                <p className="font-semibold text-gray-900">Sarah Peterson</p>
-                <p className="text-sm text-gray-600">Photographer & Explorer</p>
+                <p className="font-semibold text-gray-900">Jatin Shah</p>
+                <p className="text-sm text-gray-600">Historian & Travel Blogger</p>
               </div>
             </div>
           </div>

@@ -115,23 +115,29 @@ const Rates = () => {
   };
 
   return (
-    <section className="py-25 sm:py-28 bg-gradient-to-b from-gray-50 to-white min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        < Navbar />
+    <div className="bg-gray-50 min-h-screen font-inter">
+      <Navbar />
         
-        {/* Header Section */}
-        <header className="text-center mb-16 sm:mb-20 mt-10">
-          <p className={`text-lg font-semibold uppercase tracking-wider ${PRIMARY_COLOR_CLASS}`}>
+      {/* Header Section - START of ContactUs-like structure */}
+      <div className="bg-white pt-24 pb-16 sm:pt-32 sm:pb-24 border-b border-gray-100 shadow-sm">
+        <header className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          {/* <p className={`text-lg font-semibold uppercase tracking-wider ${PRIMARY_COLOR_CLASS} mb-2`}>
             Transparent Pricing
-          </p>
-          <h1 className="text-5xl sm:text-7xl text-gray-900 mt-2">
+          </p> */}
+          <h1 className="text-5xl sm:text-7xl text-gray-900 tracking-tight">
             Our Rates & Packages
           </h1>
           <p className="mt-4 text-xl text-gray-600 max-w-3xl mx-auto">
             Find the perfect package for your getaway, <br /> from short picnics to full night stays.
           </p>
         </header>
+      </div>
+      {/* Header Section - END of ContactUs-like structure */}
 
+
+      <section className="py-16 sm:py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        
         {/* Day Picnic Section */}
         <article className="mb-20">
           <div className="flex items-center justify-center mb-10">
@@ -401,10 +407,11 @@ const Rates = () => {
         </article>
 
       </div>
+      </section>
 
-        {/* Footer */}
-        <Footer />
-    </section>
+      {/* Footer */}
+      <Footer />
+    </div>
   );
 };
 

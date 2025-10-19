@@ -4,16 +4,16 @@ import { ChevronLeft, ChevronRight, Heart, MapPin, Star, Calendar, Users, Clock 
 import styled from "styled-components";
 
 // Importing images
-import img1 from '../assets/Images/OneDayPicnic.png';
+import img1 from '../assets/Images/Picnic.jpeg';
 import img2 from '../assets/Images/familygathering.jpg';
-import img3 from '../assets/Images/kittyparty.jpg';
-import img4 from '../assets/Images/eventmanage.webp';
+import img3 from '../assets/Images/KittyParty.jpeg';
+import img4 from '../assets/Images/EventOrganisin.jpeg';
 import img5 from '../assets/Images/weddingdestination.jpg';
 import img6 from '../assets/Images/preweddingshoot.jpg';
 import img7 from '../assets/Images/birthdayPlanning.webp';
 import img8 from '../assets/Images/corporateevent.webp';
 import img9 from '../assets/Images/schoolpicnic.png';
-import img10 from '../assets/Images/corporatephotoshoot.jpeg';
+import img10 from '../assets/Images/CorporateShoot.jpeg';
 import img11 from '../assets/Images/musicalbum.jpeg';
 import img12 from '../assets/Images/movieshooting.avif';
 
@@ -32,80 +32,90 @@ const eventImages = {
   'Movie Shooting Locations': img12
 };
 
+// Helper to parse capacity string (e.g., '10-80 People') into a number range [min, max]
+const parseCapacity = (capacityStr) => {
+  const match = capacityStr.match(/(\d+)-(\d+)/);
+  if (match) {
+    return { min: parseInt(match[1]), max: parseInt(match[2]) };
+  }
+  // Default to a wide range if format is unexpected
+  return { min: 0, max: 1000 }; 
+};
+
 const events = [
   { 
     title: 'One Day Picnic', 
     image: eventImages['One Day Picnic'], 
-    properties: ['Lakeside Retreat', 'Sunrise Farmhouse', 'Forest Glen'], 
+    properties: ['Misty-Wood', 'Riverfront','Swarg Maru Gaam', 'Ambawadi'], 
     duration: 'Full Day',
-    capacity: '50-100 People'
+    capacity: '5-100 People'
   },
   { 
     title: 'Family Gatherings', 
     image: eventImages['Family Gatherings'], 
-    properties: ['Grand Ballroom', 'Cozy Cottage', 'Hilltop Manor'], 
+    properties: ['Misty-Wood','Riverfront', 'Ambawadi'], 
     duration: '4-6 Hours',
-    capacity: '30-80 People'
+    capacity: '10-80 People'
   },
   { 
     title: 'Kitty Parties', 
     image: eventImages['Kitty Parties'], 
-    properties: ['Luxe Lounge', 'Garden Patio', 'City Cafe'], 
+    properties: ['Misty-Wood', 'Ambawadi', 'Swarg Maru Gaam'], 
     duration: '3-5 Hours',
     capacity: '20-40 People'
   },
   { 
     title: 'Event Organizing', 
     image: eventImages['Event Organizing'], 
-    properties: ['Conference Hall', 'Exhibit Center', 'Open-air Venue'], 
+    properties: ['Misty-Wood', 'Riverfront', 'Ambawadi'], 
     capacity: '100-500 People'
   },
   { 
     title: 'Wedding Destination', 
     image: eventImages['Wedding Destination'], 
-    properties: ['Beachside Resort', 'Mountain Lodge', 'Historic Palace'], 
+    properties: ['Riverfront', 'Ambawadi', 'Misty-Wood'], 
     capacity: '100-300 People'
   },
   { 
     title: 'Pre-wedding Photoshoots', 
     image: eventImages['Pre-wedding Photoshoots'], 
-    properties: ['Rustic Barn', 'Royal Gardens', 'Desert Oasis'],
+    properties: ['Riverfront', 'Swarg Maru Gaam'],
     capacity: '10-20 People'
   },
   { 
     title: 'Birthday Party Planning', 
     image: eventImages['Birthday Party Planning'], 
-    properties: ['Poolside Cabana', 'Play Zone', 'Clubhouse'], 
+    properties: ['Misty-Wood', 'Ambawadi', 'Riverfront'], 
     capacity: '20-60 People'
   },
   { 
     title: 'Corporate Event Planning', 
     image: eventImages['Corporate Event Planning'], 
-    properties: ['Conference Center', 'Executive Suite', 'Team Building Park'], 
+    properties: ['Misty-Wood', 'Riverfront', 'Ambawadi'], 
     capacity: '50-200 People'
   },
   { 
     title: 'School Picnic Arrangements', 
     image: eventImages['School Picnic Arrangements'], 
-    properties: ['Amusement Park', 'Botanical Garden', 'Zoo & Wildlife Reserve'], 
+    properties: ['Misty-Wood', 'Riverfront', 'Ambawadi'], 
     capacity: '100-500 People'
   },
   { 
     title: 'Corporate Photoshoots', 
     image: eventImages['Corporate Photoshoots'], 
-    properties: ['Modern Studio', 'Office Rooftop', 'Urban Street Art'], 
+    properties: ['Misty-Wood', 'Riverfront', 'Ambawadi'], 
     capacity: '10-30 People'
   },
   { 
     title: 'Music Album Shoot Locations', 
     image: eventImages['Music Album Shoot Locations'], 
-    properties: ['Abandoned Warehouse', 'Neon Cityscape', 'Natural Waterfall'], 
-    capacity: '15-25 People'
+    properties: ['Misty-Wood', 'Riverfront', 'Ambawadi'], 
+    capacity: '15-75 People'
   },
   { 
     title: 'Movie Shooting Locations', 
     image: eventImages['Movie Shooting Locations'], 
-    properties: ['Old Town Square', 'Futuristic Lab', 'Jungle Ruins'], 
+    properties: ['Misty-Wood', 'Riverfront', 'Ambawadi', 'Swarg Maru Gaam'],
     capacity: '20-50 People'
   },
 ];
@@ -416,6 +426,17 @@ const Events = () => {
   const [isAutoPlay, setIsAutoPlay] = useState(true);
   const [isManualNav, setIsManualNav] = useState(false);
 
+  // Updated mock property details with a capacity range
+  const mockPropertyDetails = [
+    { name: 'Misty-Wood', location: 'Vadodara, Gujarat', features: ['Garden', 'Parking', 'Swimming Pool', 'AC', 'Catering'], capacityRange: { min: 20, max: 250 } },
+    { name: 'Swarg Maru Gaam', location: 'Padra, Gujarat', features: ['Farm View', 'Pool', 'Garden', 'BBQ', 'Nature'], capacityRange: { min: 5, max: 50 } },
+    { name: 'Ambawadi', location: 'Dabhoi, Gujarat', features: ['Forest View', 'Bonfire', 'Nature', 'Wildlife', 'Swimming Pool', 'BBQ', 'Outdoor Dining'], capacityRange: { min: 40, max: 400 } },
+    { name: 'Riverfront', location: 'Savli, Gujarat', features: ['River Bank', 'Flowing Water', 'Nature', 'Isolated Place', 'Sunset Viewpoint', 'Wildlife', 'Exotic Birds', 'BBQ'], capacityRange: { min: 10, max: 150 } },
+    { name: 'Modern Studio', location: 'Vadodara, Gujarat', features: ['Modern Decor', 'Lighting', 'Equipment'], capacityRange: { min: 10, max: 35 } },
+    { name: 'Office Rooftop', location: 'Ahmedabad, Gujarat', features: ['City View', 'Open Air', 'Bar'], capacityRange: { min: 30, max: 100 } },
+    { name: 'Urban Street Art', location: 'Surat, Gujarat', features: ['Graffiti', 'Raw Aesthetic'], capacityRange: { min: 5, max: 25 } },
+  ];
+
   const handleCardClick = (event) => {
     setSelectedEvent(event);
   };
@@ -463,11 +484,28 @@ const Events = () => {
   const cardWidth = 300 + 24;
   const translateX = isManualNav ? -(currentIndex * cardWidth) : 0;
 
-  const mockPropertyDetails = [
-    { name: 'Lakeside Retreat', location: 'Vadodara, Gujarat', features: ['Lake View', 'Parking', 'AC', 'Catering'] },
-    { name: 'Sunrise Farmhouse', location: 'Anand, Gujarat', features: ['Farm View', 'Pool', 'Garden', 'BBQ'] },
-    { name: 'Forest Glen', location: 'Dabhoi, Gujarat', features: ['Forest View', 'Bonfire', 'Trekking', 'Wildlife'] }
-  ];
+  // --- NEW LOGIC: Filter properties based on event requirements ---
+  const filteredProperties = selectedEvent 
+    ? mockPropertyDetails.filter(property => {
+        // 1. Check if the property is suitable for the event type (by name in properties array)
+        const isSuitableEventType = selectedEvent.properties.includes(property.name);
+        
+        if (!isSuitableEventType) {
+          return false;
+        }
+
+        // 2. Check if the property's capacity can handle the event's required capacity
+        const eventCapacity = parseCapacity(selectedEvent.capacity);
+        const propertyMin = property.capacityRange.min;
+        const propertyMax = property.capacityRange.max;
+        
+        // A property is valid if its capacity range overlaps with the event's required capacity range.
+        // Simplified check: The property's max capacity must be greater than or equal to the event's minimum required capacity.
+        // A more robust check: (eventMax >= propertyMin) AND (eventMin <= propertyMax)
+        return propertyMax >= eventCapacity.min;
+      })
+    : [];
+  // -----------------------------------------------------------------
 
   return (
     <SectionWrapper>
@@ -486,6 +524,7 @@ const Events = () => {
           {duplicatedEvents.map((event, index) => (
             <CardWrapper key={index} onClick={() => handleCardClick(event)}>
               <Card whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                {/* HeartIcon removed from Card, but left in style for future use */}
                 <CardImage src={event.image} alt={event.title} />
                 <CardContent>
                   <CardHeader>
@@ -531,29 +570,37 @@ const Events = () => {
             Recommended Venues for <span style={{ color: '#008DDA' }}>{selectedEvent.title}</span>
           </PropertiesTitle>
           <PropertiesGrid>
-            {mockPropertyDetails.map((property, index) => (
-              <PropertyCard
-                key={index}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <PropertyHeader>
-                  <PropertyName>{property.name}</PropertyName>
-                </PropertyHeader>
-                <PropertyLocation>
-                  <MapPin size={16} />
-                  {property.location}
-                </PropertyLocation>
-                <PropertyFeatures>
-                  {property.features.map((feature, fIndex) => (
-                    <FeatureTag key={fIndex}>{feature}</FeatureTag>
-                  ))}
-                </PropertyFeatures>
-                <ViewDetailsButton>
-                  View Details & Book
-                </ViewDetailsButton>
-              </PropertyCard>
-            ))}
+            {filteredProperties.length > 0 ? (
+                filteredProperties.map((property, index) => (
+                    <PropertyCard
+                        key={index}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                    >
+                        <PropertyHeader>
+                        <PropertyName>{property.name}</PropertyName>
+                        </PropertyHeader>
+                        <PropertyLocation>
+                        <MapPin size={16} />
+                        {property.location}
+                        </PropertyLocation>
+                        <PropertyFeatures>
+                            {/* Display property capacity */}
+                            <FeatureTag>Capacity: {property.capacityRange.min}-{property.capacityRange.max} People</FeatureTag>
+                            {property.features.map((feature, fIndex) => (
+                                <FeatureTag key={fIndex}>{feature}</FeatureTag>
+                            ))}
+                        </PropertyFeatures>
+                        <ViewDetailsButton>
+                        View Details & Book
+                        </ViewDetailsButton>
+                    </PropertyCard>
+                ))
+            ) : (
+                <p style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#718096', fontSize: '1.1rem' }}>
+                    No suitable venues found for {selectedEvent.title} based on capacity and type.
+                </p>
+            )}
           </PropertiesGrid>
         </PropertiesSection>
       )}

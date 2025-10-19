@@ -1,16 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Share2, Heart, Star, MapPin, Key, Calendar, Tag, Flag } from 'lucide-react';
+import { 
+  Share2, Heart, Star, MapPin, Key, Calendar, Tag, Flag, 
+  Users, Bed, Bath, Clock, CheckCircle, Gift 
+} from 'lucide-react';
 import { BookingModal, ImageGallery, GuestSelector, ReviewSection, LocationMap, Calenderdates } from '../components/Location';
 
 // Components
-// import ImageGallery from '../components/locationdetail/ImageGallery';
-// import Calenderdates from './locationdetail/Calenderdates';
-// import GuestSelector from '../components/locationdetail/GuestSelector';
-// import BookingModal from '../components/locationdetail/BookingModal';
-// import ReviewsSection from '../components/locationdetail/ReviewSection';
-// import LocationMap from './locationdetail/LocationMap';
 import LoadingSkeleton from '../components/Location/LoadingSkeletion';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -24,6 +21,10 @@ import {
   processAmenities,
   formatDate 
 } from '../utils/locations/locationUitls';
+
+// Define the primary color for consistency
+const PRIMARY_COLOR = '#008DDA';
+const PRIMARY_COLOR_CLASS = 'text-[#008DDA]';
 
 function LocationDetail() {
   const { id } = useParams();
@@ -94,9 +95,6 @@ function LocationDetail() {
     };
 
     fetchLocationData();
-    // In LocationDetail.jsx or at the top of your utility file
-console.log('Environment variables:', import.meta.env);
-console.log('API_CONNECTION_HOST:', import.meta.env.VITE_API_CONNECTION_HOST);
   }, [id]);
 
   const handleDateClick = (day, monthIndex) => {
@@ -113,11 +111,13 @@ console.log('API_CONNECTION_HOST:', import.meta.env.VITE_API_CONNECTION_HOST);
         setCheckOutDate(clickedDate);
         const datesBetween = [];
         let currentDate = new Date(checkInDate);
+        // Start from the day after check-in for selection range, as check-in day is already selected
+        currentDate.setDate(currentDate.getDate() + 1); 
         while (currentDate <= clickedDate) {
           datesBetween.push(new Date(currentDate));
           currentDate.setDate(currentDate.getDate() + 1);
         }
-        setSelectedDates(datesBetween);
+        setSelectedDates([checkInDate, ...datesBetween]);
       } else {
         setCheckInDate(clickedDate);
         setCheckOutDate(null);
@@ -159,24 +159,29 @@ console.log('API_CONNECTION_HOST:', import.meta.env.VITE_API_CONNECTION_HOST);
     }
 
     try {
+      const nights = checkInDate && checkOutDate && checkOutDate > checkInDate
+          ? Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24))
+          : 1;
+
       const bookingData = {
         locationId: id,
         name: bookingForm.name.trim(),
         phone: bookingForm.phone.trim(),
         address: bookingForm.address.trim(),
         food: bookingForm.food,
-        checkInDate,
-        checkOutDate,
-        nights: checkInDate && checkOutDate && checkOutDate > checkInDate
-          ? Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24))
-          : 1,
+        checkInDate: checkInDate.toISOString(),
+        checkOutDate: location?.propertyDetails?.nightStay ? checkOutDate.toISOString() : null, // Only include if it's a night stay
+        nights,
         adults,
         kids,
         totalGuests: adults + kids
       };
 
       console.log('Booking data:', bookingData);
-      alert('Booking submitted successfully!');
+      // NOTE: Placeholder for actual API call
+      // const response = await axios.post(`${API_BASE_URL}/api/bookings`, bookingData);
+      
+      alert('Booking submitted successfully! We will contact you shortly.');
       setShowBookingModal(false);
       setBookingForm({ name: '', phone: '', address: '', food: false });
     } catch (error) {
@@ -208,7 +213,7 @@ console.log('API_CONNECTION_HOST:', import.meta.env.VITE_API_CONNECTION_HOST);
           <Star
             key={star}
             size={16}
-            className={star <= numericRating ? "text-black fill-current" : "text-gray-300"}
+            className={star <= numericRating ? `${PRIMARY_COLOR_CLASS} fill-current` : "text-gray-300"}
           />
         ))}
       </div>
@@ -218,12 +223,12 @@ console.log('API_CONNECTION_HOST:', import.meta.env.VITE_API_CONNECTION_HOST);
   if (loading) return <LoadingSkeleton />;
   if (error) {
     return (
-      <div className="min-h-screen bg-white py-10 flex items-center justify-center font-poppins">
-        <div className="text-center">
-          <div className="text-red-500 text-xl mb-4">{error}</div>
+      <div className="min-h-screen bg-gray-50 py-10 flex items-center justify-center font-inter">
+        <div className="text-center p-8 bg-white rounded-xl shadow-lg border border-red-200">
+          <div className="text-red-600 text-xl mb-4 font-semibold">{error}</div>
           <button 
             onClick={() => window.location.reload()}
-            className="bg-pink-600 text-white px-6 py-2 rounded-lg hover:bg-pink-700 transition-colors font-poppins"
+            className="bg-[#008DDA] text-white px-6 py-3 rounded-lg hover:bg-[#0066a8] transition-colors font-semibold"
           >
             Refresh Page
           </button>
@@ -233,8 +238,8 @@ console.log('API_CONNECTION_HOST:', import.meta.env.VITE_API_CONNECTION_HOST);
   }
   if (!location) {
     return (
-      <div className="min-h-screen bg-white py-10 flex items-center justify-center font-poppins">
-        <div className="text-center text-gray-500">Location not found</div>
+      <div className="min-h-screen bg-gray-50 py-10 flex items-center justify-center font-inter">
+        <div className="text-center text-gray-500 p-8 bg-white rounded-xl shadow-lg">Location not found</div>
       </div>
     );
   }
@@ -245,111 +250,143 @@ console.log('API_CONNECTION_HOST:', import.meta.env.VITE_API_CONNECTION_HOST);
   const totalReviews = reviews?.summary?.totalReviews || 0;
   const recommendedPercentage = reviews?.summary?.recommendedPercentage || 0;
 
+  // Property Details for badges
+  const propertyDetails = [
+    { value: location.capacityOfPersons, label: 'Guests', icon: Users, color: 'bg-blue-100 text-blue-800' },
+    { value: location.propertyDetails?.bedrooms, label: 'Bedrooms', icon: Bed, color: 'bg-green-100 text-green-800' },
+    { value: location.propertyDetails?.bathrooms || 1, label: 'Bathrooms', icon: Bath, color: 'bg-yellow-100 text-yellow-800' },
+  ].filter(detail => detail.value);
+
+  // --- START OF UI ---
+
   return (
     <>
     <Navbar/>
-    <div className="min-h-screen bg-white lg:py-25 font-poppins">
-      {/* Header */}
-      <header className="bg-white z-10 font-poppins">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-gray-900 font-crimson">{location.name}</h1>
-          <div className="flex items-center gap-4">
-            <button className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors font-poppins">
-              <Share2 size={16} />
-              <span className="text-sm font-medium underline">Share</span>
-            </button>
-            <button className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors font-poppins">
-              <Heart size={16} />
-              <span className="text-sm font-medium underline">Save</span>
-            </button>
+    <div className="min-h-screen bg-gray-50 pt-20 font-inter">
+      {/* Fixed Header: Name and Actions (Visible on scroll) */}
+      
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        
+        {/* Main Title and Meta */}
+        <div className="mb-6">
+          <h1 className="text-4xl lg:text-5xl font-extrabold text-gray-900 mb-2 leading-tight">
+            {location.name}
+          </h1>
+          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+            {reviewsLoading ? (
+              <div className="flex items-center gap-1 text-gray-500">
+                <Star size={16} className="text-gray-300" />
+                <span className="font-semibold">Loading ratings...</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 font-semibold">
+                {renderStars(Math.round(averageRating))}
+                <span className="ml-1 text-gray-900">{averageRating.toFixed(1)}</span>
+                <span className="mx-1 text-gray-400">·</span>
+                <button 
+                  onClick={() => navigate(`/location/${id}/reviews`)}
+                  className="underline hover:text-gray-700 transition-colors"
+                >
+                  {totalReviews} review{totalReviews !== 1 ? 's' : ''}
+                </button>
+              </div>
+            )}
+            <span className="text-gray-400">·</span>
+            <div className="flex items-center gap-1">
+                <MapPin size={16} className="text-gray-400" />
+                <span className="underline">
+                    {location.address?.city ?? 'Location TBD'}
+                </span>
+            </div>
+            
+            {/* Share/Save buttons in title bar */}
+            <div className="ml-auto flex items-center gap-2">
+                <button className="flex items-center gap-1 px-3 py-2 rounded-full hover:bg-gray-200 transition-colors text-gray-700 text-sm font-medium">
+                  <Share2 size={16} />
+                  <span>Share</span>
+                </button>
+                <button className="flex items-center gap-1 px-3 py-2 rounded-full hover:bg-gray-200 transition-colors text-gray-700 text-sm font-medium">
+                  <Heart size={16} />
+                  <span>Save</span>
+                </button>
+            </div>
           </div>
         </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-6 font-poppins">
         {/* Images Section */}
         <ImageGallery locationId={id} images={images} />
+        
+        <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-10 lg:gap-12">
+          
+          {/* LEFT SECTION - Details and Info */}
+          <div className="lg:col-span-2 space-y-10">
+            
+            {/* 1. Property Summary & Badges */}
+            <div className="pb-6 border-b border-gray-200">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-3">
+                {location.propertyDetails?.nightStay ? 'Farmhouse Night Stay' : 'Exclusive Day Picnic Spot'} hosted by Owner
+              </h2>
+              
+              <div className="flex flex-wrap items-center gap-3 text-sm font-medium">
+                {propertyDetails.map((detail, index) => (
+                    <div key={index} className={`flex items-center gap-2 px-3 py-1 rounded-full ${detail.color}`}>
+                        <detail.icon size={16} className="flex-shrink-0" />
+                        <span>{detail.value} {detail.label}</span>
+                    </div>
+                ))}
+              </div>
+            </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-16">
-          {/* LEFT SECTION */}
-          <div className="lg:col-span-2">
-            <div className="border-b border-gray-200 pb-6 mb-6">
-              <h2 className="text-2xl font-semibold mb-2 font-crimson">{location.name}</h2>
-              <p className="text-gray-700 mb-3 font-poppins">
-                {location.capacityOfPersons} guests · {location.propertyDetails?.bedrooms} bedrooms ·{' '}
-                {location.propertyDetails?.bathrooms || 1} bathrooms
-              </p>
-              <div className="flex items-center gap-1 font-poppins">
-                {reviewsLoading ? (
-                  <div className="flex items-center gap-1 text-gray-500">
-                    <Star size={16} className="text-gray-300" />
-                    <span className="font-semibold">Loading...</span>
+            {/* 2. Highlights */}
+            <div className="pb-6 border-b border-gray-200 space-y-5">
+              <h3 className="font-semibold text-xl mb-4 text-gray-900">Key Highlights</h3>
+              
+              <div className="grid sm:grid-cols-2 gap-4">
+                  
+                {/* Highlight 1: Check-in */}
+                <div className="flex items-start gap-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm">
+                  <CheckCircle size={24} className={`mt-1 flex-shrink-0 ${PRIMARY_COLOR_CLASS}`} />
+                  <div>
+                    <h4 className="font-semibold mb-1 text-gray-900">Smooth Check-in</h4>
+                    <p className="text-sm text-gray-600">
+                      {totalReviews > 0 
+                        ? `${recommendedPercentage}% of guests gave the check-in process a 5-star rating.`
+                        : "Guests consistently rate our check-in process 5 stars."
+                      }
+                    </p>
                   </div>
-                ) : (
-                  <>
-                    {renderStars(Math.round(averageRating))}
-                    <span className="font-semibold ml-1">{averageRating.toFixed(1)}</span>
-                    <span className="mx-1">·</span>
-                    <button 
-                      onClick={() => navigate(`/location/${id}/reviews`)}
-                      className="underline font-semibold hover:text-gray-700"
-                    >
-                      {totalReviews} review{totalReviews !== 1 ? 's' : ''}
-                    </button>
-                    {recommendedPercentage > 0 && (
-                      <>
-                        <span className="mx-1">·</span>
-                        <span className="text-green-600 font-bold text-[13px]">
-                          {recommendedPercentage}% recommend
-                        </span>
-                      </>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Highlights */}
-            <div className="border-b border-gray-200 pb-6 mb-6 space-y-4">
-              <div className="flex items-start gap-4">
-                <Key size={24} className="mt-1 flex-shrink-0 text-gray-700" />
-                <div>
-                  <h3 className="font-semibold mb-1 font-crimson">Exceptional check-in experience</h3>
-                  <p className="text-gray-600 font-poppins">
-                    {totalReviews > 0 
-                      ? `${recommendedPercentage}% of guests gave the check-in process a 5-star rating.`
-                      : "Guests consistently rate our check-in process 5 stars."
-                    }
-                  </p>
                 </div>
-              </div>
 
-              <div className="flex items-start gap-4">
-                <MapPin size={24} className="mt-1 flex-shrink-0 text-gray-700" />
-                <div>
-                  <h3 className="font-semibold mb-1 font-crimson">Address</h3>
-                  <p className="text-gray-600 font-poppins">
-                    {location.address?.line1 ?? 'Address unavailable'}{location.address?.line2 && `, ${location.address.line2}`}{location.address?.city && `, ${location.address.city}`}{location.address?.state && `, ${location.address.state}`}{location.address?.pincode && ` - ${location.address.pincode}`}
-                  </p>
+                {/* Highlight 2: Timings */}
+                <div className="flex items-start gap-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm">
+                  <Clock size={24} className={`mt-1 flex-shrink-0 ${PRIMARY_COLOR_CLASS}`} />
+                  <div>
+                    <h4 className="font-semibold mb-1 text-gray-900">Timings</h4>
+                    <p className="text-sm text-gray-600">
+                      Check-in 10:00 AM · Checkout next day 10:00 AM (For night stay)
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-start gap-4">
-                <Calendar size={24} className="mt-1 flex-shrink-0 text-gray-700" />
-                <div>
-                  <h3 className="font-semibold mb-1 font-crimson">Timings</h3>
-                  <p className="text-gray-600 font-poppins">
-                    Check-in 10:00 AM · Checkout next day 10:00 AM
-                  </p>
+                {/* Highlight 3: Address */}
+                <div className="flex items-start gap-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm sm:col-span-2">
+                  <MapPin size={24} className={`mt-1 flex-shrink-0 ${PRIMARY_COLOR_CLASS}`} />
+                  <div>
+                    <h4 className="font-semibold mb-1 text-gray-900">Location Address</h4>
+                    <p className="text-sm text-gray-600">
+                      {location.address?.line1 ?? 'Address unavailable'}{location.address?.line2 && `, ${location.address.line2}`}{location.address?.city && `, ${location.address.city}`}{location.address?.state && `, ${location.address.state}`}{location.address?.pincode && ` - ${location.address.pincode}`}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Description */}
-            <div className="border-b border-gray-200 pb-6 mb-6">
+            {/* 3. Description */}
+            <div className="pb-6 border-b border-gray-200">
+              <h3 className="font-semibold text-2xl mb-4 text-gray-900">About this Place</h3>
               <div className="space-y-4">
                 <p 
-                  className="text-gray-700 leading-relaxed font-poppins"
+                  className="text-gray-700 leading-relaxed"
                   dangerouslySetInnerHTML={{ 
                     __html: sanitizeHTML(location.description || 'No description available.') 
                   }}
@@ -357,25 +394,28 @@ console.log('API_CONNECTION_HOST:', import.meta.env.VITE_API_CONNECTION_HOST);
               </div>
             </div>
 
-            {/* Amenities */}
-            <div className="border-b border-gray-200 pb-6 mb-6">
-              <h3 className="font-semibold text-2xl mb-6 font-crimson">What this place offers</h3>
-              <div className="grid grid-cols-2 gap-4 mb-6">
+            {/* 4. Amenities */}
+            <div className="pb-6 border-b border-gray-200">
+              <h3 className="font-semibold text-2xl mb-6 text-gray-900">What this place offers</h3>
+              <div className="grid sm:grid-cols-2 gap-4 mb-6">
                 {amenities.map((amenity, idx) => {
                   const IconComponent = amenity.icon;
                   return (
-                    <div key={idx} className="flex items-center gap-3 py-2 font-poppins">
-                      <IconComponent size={20} className="text-gray-700 flex-shrink-0" />
-                      <span className="text-gray-800">{amenity.name}</span>
+                    <div key={idx} className="flex items-center gap-3 py-2">
+                      <IconComponent size={20} className={`text-gray-700 flex-shrink-0 ${PRIMARY_COLOR_CLASS}`} />
+                      <span className="text-gray-800 font-medium">{amenity.name}</span>
                     </div>
                   );
                 })}
               </div>
+              <button className={`text-sm font-semibold underline ${PRIMARY_COLOR_CLASS} hover:text-[#0066a8] transition-colors`}>
+                  Show all {amenities.length} amenities
+              </button>
             </div>
 
-            {/* Calendar Section */}
-            <div className="border-b border-gray-200 pb-6 mb-6">
-              <h3 className="font-semibold text-2xl mb-6 font-crimson">Check Availability</h3>
+            {/* 5. Calendar Section */}
+            <div className="pb-6 border-b border-gray-200">
+              <h3 className="font-semibold text-2xl mb-6 text-gray-900">Select Your Dates</h3>
               <Calenderdates
                 months={months}
                 currentMonth={currentMonth}
@@ -393,73 +433,106 @@ console.log('API_CONNECTION_HOST:', import.meta.env.VITE_API_CONNECTION_HOST);
                     setCheckOutDate(null);
                     setSelectedDates([]);
                   }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors font-poppins"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   Clear dates
                 </button>
               </div>
             </div>
+            
+            {/* 6. Reviews Section */}
+            <ReviewSection
+              reviews={reviews}
+              expandedReviews={expandedReviews}
+              onToggleReviewExpansion={toggleReviewExpansion}
+              locationId={id}
+            />
+
+            {/* 7. Map Section */}
+            {location && (
+              <LocationMap location={location} />
+            )}
           </div>
 
-          {/* RIGHT SECTION - Booking Card */}
+          {/* RIGHT SECTION - Booking Card (Sticky) */}
           <div className="lg:col-span-1">
             <div className="lg:sticky lg:top-24">
-              <div className="border border-gray-200 rounded-xl shadow-lg p-6 font-poppins">
-                <div className="grid grid-cols-2 border border-gray-300 rounded-lg mb-4">
-                  <div className="border-r border-gray-300 p-3">
-                    <div className="text-xs font-semibold text-gray-700 mb-1">CHECK-IN</div>
-                    <div className="font-medium">
-                      {checkInDate ? formatDate(checkInDate) : 'Select date'}
-                    </div>
+              <div className="bg-white border-2 border-gray-100 rounded-2xl shadow-2xl p-6 transition-shadow hover:shadow-3xl">
+                
+                {/* Booking Header (MODIFIED: PRICE REMOVED) */}
+                <div className="flex items-center justify-center mb-4 pb-4 border-b border-gray-100">
+                  <div className="flex items-center">
+                    <span className="text-xl font-bold text-gray-900 mr-2">
+                      Check Availability
+                    </span>
                   </div>
-                  <div className="p-3">
-                    <div className="text-xs font-semibold text-gray-700 mb-1">CHECKOUT</div>
-                    <div className="font-medium">
-                      {checkOutDate ? formatDate(checkOutDate) : 
-                      location?.propertyDetails?.nightStay ? 'Select date' : 'Next day'}
-                    </div>
-                  </div>
+                  {totalReviews > 0 && (
+                      <div className="flex items-center text-sm font-semibold ml-auto">
+                          {renderStars(Math.round(averageRating))}
+                          <span className="ml-1 text-gray-800">{averageRating.toFixed(1)}</span>
+                      </div>
+                  )}
                 </div>
 
-                <GuestSelector
-                  adults={adults}
-                  kids={kids}
-                  onGuestChange={handleGuestChange}
-                  showGuestSelector={showGuestSelector}
-                  setShowGuestSelector={setShowGuestSelector}
-                  maxCapacity={location.capacityOfPersons}
-                  ref={guestSelectorRef}
-                />
+                {/* Date & Guest Inputs */}
+                <div className="border border-gray-300 rounded-xl overflow-hidden mb-4">
+                  <div className="grid grid-cols-2">
+                    <div className="border-r border-gray-300 p-3 hover:bg-gray-50 transition-colors">
+                      <div className="text-xs font-semibold text-gray-700 mb-1">CHECK-IN</div>
+                      <div className="font-medium text-gray-900">
+                        {checkInDate ? formatDate(checkInDate) : 'Select date'}
+                      </div>
+                    </div>
+                    <div className="p-3 hover:bg-gray-50 transition-colors">
+                      <div className="text-xs font-semibold text-gray-700 mb-1">CHECKOUT</div>
+                      <div className="font-medium text-gray-900">
+                        {checkOutDate ? formatDate(checkOutDate) : 
+                        location?.propertyDetails?.nightStay ? 'Select date' : 'Next day'}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <GuestSelector
+                    adults={adults}
+                    kids={kids}
+                    onGuestChange={handleGuestChange}
+                    showGuestSelector={showGuestSelector}
+                    setShowGuestSelector={setShowGuestSelector}
+                    maxCapacity={location.capacityOfPersons}
+                    ref={guestSelectorRef}
+                  />
+                </div>
 
+                {/* CTA Button */}
                 <button 
                   onClick={handleBookNow}
-                  disabled={adults + kids > location.capacityOfPersons || !checkInDate}
-                  className="w-full bg-gradient-to-r from-pink-600 to-rose-600 text-white font-semibold py-3.5 rounded-lg hover:from-pink-700 hover:to-rose-700 transition-all mb-4 disabled:opacity-50 disabled:cursor-not-allowed font-poppins"
+                  disabled={adults + kids > location.capacityOfPersons || !checkInDate || (location?.propertyDetails?.nightStay && !checkOutDate)}
+                  className={`w-full bg-[#008DDA] text-white font-extrabold py-3.5 rounded-xl hover:bg-[#0066a8] transition-all duration-300 mb-4 
+                             shadow-lg shadow-blue-200 transform hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {adults + kids > location.capacityOfPersons 
                     ? `Maximum ${location.capacityOfPersons} guests allowed`
-                    : 'Book Now'
+                    : 'Reserve Now'
                   }
                 </button>
 
+                {/* Capacity Info */}
                 <div className="border-t border-gray-200 pt-4">
                   <div className="flex items-start gap-3 text-sm">
-                    <Tag size={24} className="text-pink-600 flex-shrink-0 mt-1" />
+                    <Gift size={24} className={`${PRIMARY_COLOR_CLASS} flex-shrink-0 mt-1`} />
                     <div>
-                      <h4 className="font-semibold mb-1 font-crimson">Capacity Information</h4>
-                      <p className="text-gray-600 font-poppins">
-                        This location accommodates maximum {location.capacityOfPersons} guest{location.capacityOfPersons !== 1 ? 's' : ''}. 
-                        Perfect for {location.capacityOfPersons === 1 ? 'solo travelers' : 
-                                    location.capacityOfPersons === 2 ? 'couples' : 
-                                    `small groups up to ${location.capacityOfPersons} people`}.
+                      <h4 className="font-semibold mb-1 text-gray-900">Group Size</h4>
+                      <p className="text-gray-600">
+                        This location accommodates maximum <span className="font-bold">{location.capacityOfPersons} guest{location.capacityOfPersons !== 1 ? 's' : ''}</span>. 
+                        Contact us for larger group bookings and special rates.
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-4 text-center">
-                <button className="flex items-center gap-2 text-sm text-gray-600 hover:underline mx-auto font-poppins">
+              <div className="mt-6 text-center">
+                <button className="flex items-center gap-2 text-sm text-gray-600 hover:underline mx-auto">
                   <Flag size={16} />
                   Report this listing
                 </button>
@@ -468,17 +541,6 @@ console.log('API_CONNECTION_HOST:', import.meta.env.VITE_API_CONNECTION_HOST);
           </div>
         </div>
 
-        {/* Reviews Section */}
-        <ReviewSection
-          reviews={reviews}
-          expandedReviews={expandedReviews}
-          onToggleReviewExpansion={toggleReviewExpansion}
-          locationId={id}
-        />
-
-        {location && (
-          <LocationMap location={location} />
-        )}
       </main>
 
       {/* Booking Modal */}
