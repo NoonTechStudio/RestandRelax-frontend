@@ -18,7 +18,7 @@ function LocationPhotos() {
     const fetchLocation = async () => {
       try {
         setIsLoading(true);
-        const res = await axios.get(`${API_BASE_URL}/api/locations/${id}`);
+        const res = await axios.get(`${API_BASE_URL}/locations/${id}`);
         setLocationData(res.data);
       } catch (err) {
         console.error('Error fetching location:', err);
@@ -223,7 +223,7 @@ function LocationPhotos() {
                   <div className="relative w-full rounded-2xl overflow-hidden shadow-2xl border border-gray-100 group">
                     {/* The Image */}
                     <img
-                      src={`${API_BASE_URL}${room.imageUrl}`}
+                      src={`${room.imageUrl}`}
                       alt={room.alt}
                       className="w-full object-cover aspect-video transition-transform duration-700 group-hover:scale-[1.02]" 
                       onError={(e) => {

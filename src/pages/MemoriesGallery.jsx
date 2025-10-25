@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Filter, X, Heart, Share2, ZoomIn, Image, ArrowRight } from 'lucide-react'; // Added Image and ArrowRight, removed Search
+import { MapPin, Filter, X, Heart, Share2, ZoomIn, Image, ArrowRight } from 'lucide-react';
 import axios from 'axios';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -17,28 +17,56 @@ const MemoriesGallery = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
-  const [showLimit, setShowLimit] = useState(12); // Initial display limit for a nicer load
+  const [showLimit, setShowLimit] = useState(12);
+  const [failedImages, setFailedImages] = useState(new Set()); // Track failed image loads
+
+  // Function to construct proper image URL
+  const getImageUrl = (image) => {
+    if (!image) return null;
+    
+    // Try different possible image path properties
+    const path = image.fullUrl || image.url || image.path || image.webpPath || image.src;
+    
+    if (!path) {
+      console.warn('No image path found:', image);
+      return null;
+    }
+    
+    // If it's already a full URL, use it as is
+    if (path.startsWith('http')) {
+      return path;
+    }
+    
+    // If it's a relative path starting with /, construct full URL
+    if (path.startsWith('/')) {
+      return `${API_BASE_URL}${path}`;
+    }
+    
+    // If it's just a filename, construct path
+    return `${API_BASE_URL}/uploads/${path}`;
+  };
 
   // Fetch locations and their images
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        setFailedImages(new Set()); // Reset failed images
         
-        const locationsResponse = await axios.get(`${API_BASE_URL}/api/locations`);
+        const locationsResponse = await axios.get(`${API_BASE_URL}/locations`);
         const locationsData = locationsResponse.data;
         setLocations(locationsData);
 
         const imagesPromises = locationsData.map(async (location) => {
           try {
-            const imagesResponse = await axios.get(`${API_BASE_URL}/api/locations/${location._id}`);
+            const imagesResponse = await axios.get(`${API_BASE_URL}/locations/${location._id}`);
             const images = imagesResponse.data.images || [];
             
             return images.map(img => ({
               ...img,
               locationId: location._id,
               locationName: location.name,
-              fullUrl: `${API_BASE_URL}${img.url}` // Create full URL
+              // Don't pre-process URL here, we'll handle it in getImageUrl
             }));
           } catch (imgError) {
             console.error(`Error fetching images for location ${location._id}:`, imgError);
@@ -47,10 +75,13 @@ const MemoriesGallery = () => {
         });
 
         const nestedImages = await Promise.all(imagesPromises);
-        const images = nestedImages.flat().filter(img => img.fullUrl);
+        const images = nestedImages.flat().filter(img => img);
         
-        // Sort images by creation date (if available) or simply randomize/keep as is
-        // For now, keep the order from the API response
+        console.log('Total images loaded:', images.length);
+        if (images.length > 0) {
+          console.log('Sample image data:', images[0]);
+        }
+        
         setAllImages(images);
         setFilteredImages(images.slice(0, showLimit));
         
@@ -73,14 +104,19 @@ const MemoriesGallery = () => {
       imagesToFilter = allImages.filter(img => img.locationId === selectedLocation);
     }
 
-    // Always filter by showLimit for initial load
     setFilteredImages(imagesToFilter.slice(0, showLimit));
   }, [selectedLocation, allImages, showLimit]);
 
   // Handle location filter change
   const handleLocationChange = (locationId) => {
     setSelectedLocation(locationId);
-    setShowLimit(12); // Reset limit when filter changes
+    setShowLimit(12);
+  };
+
+  // Handle image load error
+  const handleImageError = (imageId, imageUrl) => {
+    console.error(`Failed to load image: ${imageUrl}`);
+    setFailedImages(prev => new Set([...prev, imageId]));
   };
 
   const loadMore = () => {
@@ -126,17 +162,9 @@ const MemoriesGallery = () => {
       <Navbar />
       <div className="bg-gray-50 min-h-screen font-inter">
         
-        {/* Header Section (Setup as per Rates.jsx style) */}
+        {/* Header Section */}
         <div className="bg-white pt-24 pb-16 sm:pt-32 sm:pb-24 border-b border-gray-100 shadow-sm">
           <header className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <div className="flex items-center justify-center mb-4">
-                {/* <div className={`bg-blue-50 ${PRIMARY_COLOR_CLASS} px-4 py-2 rounded-full flex items-center gap-2 shadow-sm`}>
-                    <Image className="w-5 h-5" />
-                    <p className="text-sm font-semibold uppercase tracking-wider">
-                        Capture the Moment
-                    </p>
-                </div> */}
-            </div>
             <h1 className="text-5xl sm:text-7xl text-gray-900 tracking-tight leading-tight mb-4">
               Memories Gallery
             </h1>
@@ -192,32 +220,49 @@ const MemoriesGallery = () => {
               
               {/* Image Grid */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {filteredImages.map((image, index) => (
-                  <div 
-                    key={index} 
-                    className="group relative overflow-hidden rounded-xl shadow-lg cursor-pointer transform transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]"
-                    onClick={() => openLightbox(image)}
-                  >
-                    <img
-                      src={image.fullUrl}
-                      alt={image.title || image.locationName}
-                      className="w-full h-64 object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
-                      loading="lazy"
-                    />
-                    
-                    {/* Overlay for Details and Zoom */}
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-between p-4">
-                        <div className="text-white">
-                            <div className="flex items-center gap-1.5 mb-1">
-                                <MapPin className="w-4 h-4" />
-                                <span className="text-sm font-semibold">{image.locationName}</span>
-                            </div>
-                            <p className="text-xs font-medium opacity-90">{image.title || 'Guest Photo'}</p>
+                {filteredImages.map((image, index) => {
+                  const imageUrl = getImageUrl(image);
+                  const imageId = image._id || image.id || `image-${index}`;
+                  const hasFailed = failedImages.has(imageId);
+                  
+                  return (
+                    <div 
+                      key={imageId} 
+                      className="group relative overflow-hidden rounded-xl shadow-lg cursor-pointer transform transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]"
+                      onClick={() => openLightbox(image)}
+                    >
+                      {!hasFailed && imageUrl ? (
+                        <img
+                          src={imageUrl}
+                          alt={image.title || image.locationName}
+                          className="w-full h-64 object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
+                          loading="lazy"
+                          onError={() => handleImageError(imageId, imageUrl)}
+                          onLoad={() => console.log(`✅ Image loaded: ${imageUrl}`)}
+                        />
+                      ) : (
+                        <div className="w-full h-64 bg-gray-200 flex items-center justify-center">
+                          <div className="text-center text-gray-500">
+                            <Image className="w-8 h-8 mx-auto mb-2" />
+                            <p className="text-sm">Image not available</p>
+                          </div>
                         </div>
-                        <ZoomIn className="w-6 h-6 text-white bg-white/20 p-1 rounded-full backdrop-blur-sm" />
+                      )}
+                      
+                      {/* Overlay for Details and Zoom */}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-between p-4">
+                          <div className="text-white">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                  <MapPin className="w-4 h-4" />
+                                  <span className="text-sm font-semibold">{image.locationName}</span>
+                              </div>
+                              <p className="text-xs font-medium opacity-90">{image.title || 'Guest Photo'}</p>
+                          </div>
+                          <ZoomIn className="w-6 h-6 text-white bg-white/20 p-1 rounded-full backdrop-blur-sm" />
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}
@@ -249,11 +294,37 @@ const MemoriesGallery = () => {
                 <X className="w-8 h-8" />
               </button>
               
-              <img
-                src={selectedImage.fullUrl}
-                alt={selectedImage.alt || selectedImage.title || selectedImage.locationName}
-                className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
-              />
+              {(() => {
+                const lightboxImageUrl = getImageUrl(selectedImage);
+                return lightboxImageUrl ? (
+                  <img
+                    src={lightboxImageUrl}
+                    alt={selectedImage.alt || selectedImage.title || selectedImage.locationName}
+                    className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                    onError={(e) => {
+                      console.error('Lightbox image failed to load:', lightboxImageUrl);
+                      e.target.style.display = 'none';
+                      // Show fallback in lightbox
+                      const container = e.target.parentElement;
+                      container.innerHTML = `
+                        <div class="w-96 h-96 bg-gray-200 flex items-center justify-center rounded-lg">
+                          <div class="text-center text-gray-500">
+                            <Image class="w-12 h-12 mx-auto mb-4" />
+                            <p class="text-lg">Image not available</p>
+                          </div>
+                        </div>
+                      `;
+                    }}
+                  />
+                ) : (
+                  <div className="w-96 h-96 bg-gray-200 flex items-center justify-center rounded-lg">
+                    <div className="text-center text-gray-500">
+                      <Image className="w-12 h-12 mx-auto mb-4" />
+                      <p className="text-lg">Image not available</p>
+                    </div>
+                  </div>
+                );
+              })()}
               
               {/* Image Footer/Details */}
               <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/70 to-transparent">

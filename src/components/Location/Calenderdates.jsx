@@ -10,7 +10,7 @@ const Calenderdates = ({
   checkOutDate, 
   onDateClick,
   daysOfWeek = ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
-  locationId // ADD THIS PROP to fetch booked dates for specific location
+  locationId
 }) => {
   const [bookedDates, setBookedDates] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -26,9 +26,10 @@ const Calenderdates = ({
   const fetchBookedDates = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/bookings/dates/${locationId}`);
+      const response = await fetch(`${API_BASE_URL}/bookings/dates/${locationId}`);
       const result = await response.json();
       if (result.success) {
+        // Backend now only returns paid bookings with checkout date included
         setBookedDates(result.bookedDates);
       }
     } catch (error) {
@@ -96,13 +97,14 @@ const Calenderdates = ({
     return currentDate.getTime() === checkOutDate.getTime();
   };
 
-  // NEW: Check if date is booked
+  // Check if date is booked (only for paid bookings)
   const isDateBooked = (day, monthIndex) => {
     if (!day || !months[monthIndex]) return false;
     
     const month = months[monthIndex];
     const currentDate = new Date(month.year, month.month, day);
     
+    // Now only paid bookings are considered as "booked"
     return bookedDates.some(booked => {
       const bookedDate = new Date(booked.date);
       return (
@@ -113,26 +115,7 @@ const Calenderdates = ({
     });
   };
 
-  // NEW: Get booking status for a date
-  const getDateBookingStatus = (day, monthIndex) => {
-    if (!day || !months[monthIndex]) return null;
-    
-    const month = months[monthIndex];
-    const currentDate = new Date(month.year, month.month, day);
-    
-    const bookedDate = bookedDates.find(booked => {
-      const bookedDateObj = new Date(booked.date);
-      return (
-        bookedDateObj.getDate() === currentDate.getDate() &&
-        bookedDateObj.getMonth() === currentDate.getMonth() &&
-        bookedDateObj.getFullYear() === currentDate.getFullYear()
-      );
-    });
-    
-    return bookedDate ? bookedDate.status : null;
-  };
-
-  // NEW: Check if date should be disabled
+  // Check if date should be disabled
   const isDateDisabled = (day, monthIndex) => {
     if (!day || !months[monthIndex]) return true;
     
@@ -141,7 +124,7 @@ const Calenderdates = ({
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Disable past dates and booked dates
+    // Disable past dates and booked dates (only paid bookings)
     return currentDate < today || isDateBooked(day, monthIndex);
   };
 
@@ -157,7 +140,6 @@ const Calenderdates = ({
       <div className="grid grid-cols-7 gap-1">
         {generateCalendarDays(monthIndex).map((day, index) => {
           const isBooked = isDateBooked(day, monthIndex);
-          const bookingStatus = getDateBookingStatus(day, monthIndex);
           const isDisabled = isDateDisabled(day, monthIndex);
           
           return (
@@ -178,24 +160,20 @@ const Calenderdates = ({
                 ${isCheckInDate(day, monthIndex) ? 'bg-pink-600 text-white rounded-l-lg' : ''}
                 ${isCheckOutDate(day, monthIndex) ? 'bg-pink-600 text-white rounded-r-lg' : ''}
                 
-                // Booked date styling
-                ${isBooked && bookingStatus === 'paid' ? 'bg-green-100 text-green-800 border border-green-300' : ''}
-                ${isBooked && bookingStatus === 'pending' ? 'bg-yellow-100 text-yellow-800 border border-yellow-300' : ''}
+                // Booked date styling (only for paid bookings)
+                ${isBooked ? 'bg-green-100 text-green-800 border border-green-300' : ''}
                 
                 // Normal date styling
                 ${!isDateSelected(day, monthIndex) && !isDateInRange(day, monthIndex) && !isBooked ? 
                   'hover:bg-gray-100 text-gray-900' : ''}
               `}
-              title={isBooked ? `Booked (${bookingStatus})` : ''}
+              title={isBooked ? 'Booked (Paid)' : ''}
             >
               {day}
               
-              {/* Status indicator dot */}
+              {/* Status indicator dot for booked dates */}
               {isBooked && (
-                <span className={`
-                  absolute -top-1 -right-1 w-2 h-2 rounded-full
-                  ${bookingStatus === 'paid' ? 'bg-green-500' : 'bg-yellow-500'}
-                `} />
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-green-500" />
               )}
             </button>
           );
@@ -206,15 +184,11 @@ const Calenderdates = ({
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-6">
-      {/* Legend for booked dates */}
+      {/* Updated Legend - only showing paid bookings now */}
       <div className="flex justify-center gap-4 mb-4 text-xs">
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 bg-green-100 border border-green-300 rounded"></div>
           <span>Paid Booking</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 bg-yellow-100 border border-yellow-300 rounded"></div>
-          <span>Pending Booking</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 bg-pink-600 rounded"></div>

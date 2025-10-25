@@ -1,17 +1,24 @@
 import { MapPin, Flag, Navigation } from 'lucide-react';
 
 const LocationMap = ({ location }) => {
-  const latitude = location?.latitude;
-  const longitude = location?.longitude;
+  // Get coordinates from the nested structure
+  const latitude = location?.coordinates?.lat;
+  const longitude = location?.coordinates?.lng;
   const address = location?.address;
 
   // Generate OpenStreetMap link
   const generateOSMLink = () => {
     if (!latitude || !longitude) return '#';
-    return `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}&zoom=15`;
+    return `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}&zoom=17`;
   };
 
-  // Generate iframe map (no API key required)
+  // Generate Google Maps link (alternative option)
+  const generateGoogleMapsLink = () => {
+    if (!latitude || !longitude) return '#';
+    return `https://www.google.com/maps?q=${latitude},${longitude}&z=17`;
+  };
+
+  // Generate iframe map with higher zoom level
   const renderMap = () => {
     if (!latitude || !longitude) {
       return (
@@ -32,7 +39,7 @@ const LocationMap = ({ location }) => {
         scrolling="no"
         marginHeight="0"
         marginWidth="0"
-        src={`https://www.openstreetmap.org/export/embed.html?bbox=${longitude-0.01},${latitude-0.01},${longitude+0.01},${latitude+0.01}&layer=mapnik&marker=${latitude},${longitude}`}
+        src={`https://www.openstreetmap.org/export/embed.html?bbox=${longitude-0.005},${latitude-0.005},${longitude+0.005},${latitude+0.005}&layer=mapnik&marker=${latitude},${longitude}&zoom=16`}
         className="h-96 w-full"
         title="Location Map"
       />
@@ -47,7 +54,6 @@ const LocationMap = ({ location }) => {
     if (address.line2) parts.push(address.line2);
     if (address.city) parts.push(address.city);
     if (address.state) parts.push(address.state);
-    if (address.country) parts.push(address.country);
     if (address.pincode) parts.push(address.pincode);
     
     return parts.join(', ') || 'Address information not available';
@@ -55,10 +61,10 @@ const LocationMap = ({ location }) => {
 
   // Sample nearby places - you can replace with actual data from your API
   const nearbyPlaces = [
-    "Jardins du Trocadéro",
-    "Champ de Mars", 
-    "Hôte des Invalides",
-    "Tour Eiffel"
+    "Sursagar Lake",
+    "Waghodia Road", 
+    "Vadodara City Center",
+    "Local Markets"
   ];
 
   return (
@@ -86,93 +92,48 @@ const LocationMap = ({ location }) => {
             </div>
 
             {/* Map Footer */}
-            <div className="bg-white p-4 border-t border-gray-200 w-full">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 w-full">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="bg-white p-3 border-t border-gray-200 w-full">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
+                <div className="flex items-center gap-2 text-xs text-gray-600">
                   <span>Map Data © OpenStreetMap</span>
                   <span>•</span>
-                  <span>500m</span>
+                  <span>200m</span>
                   <span>•</span>
                   <span>Terms</span>
                 </div>
                 
-                <div className="flex items-center gap-4">
-                  <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 transition-colors">
-                    <Flag size={16} />
-                    Report a map error
+                <div className="flex items-center gap-3">
+                  <button className="flex items-center gap-1 text-xs text-gray-600 hover:text-gray-800 transition-colors px-2 py-1 rounded hover:bg-gray-100">
+                    <Flag size={14} />
+                    Report map error
                   </button>
                   
                   {latitude && longitude && (
-                    <a
-                      href={generateOSMLink()}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
-                    >
-                      <Navigation size={16} />
-                      Open in Maps
-                    </a>
+                    <div className="flex gap-2">
+                      <a
+                        href={generateOSMLink()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-medium hover:bg-blue-700 transition-colors"
+                      >
+                        <Navigation size={14} />
+                        OSM
+                      </a>
+                      <a
+                        href={generateGoogleMapsLink()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 bg-green-600 text-white px-3 py-1.5 rounded text-xs font-medium hover:bg-green-700 transition-colors"
+                      >
+                        <Navigation size={14} />
+                        Google
+                      </a>
+                    </div>
                   )}
                 </div>
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Additional Location Information - Below the map */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8 px-6">
-          {/* Left Column - Address */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Address Section */}
-            {/* <div>
-              <h4 className="font-semibold text-lg mb-3">Location Details</h4>
-              <div className="flex items-start gap-3">
-                <MapPin size={20} className="text-gray-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-gray-700 font-medium mb-2">
-                    {formatAddress()}
-                  </p>
-                  {latitude && longitude && (
-                    <p className="text-sm text-gray-500">
-                      Coordinates: {latitude.toFixed(6)}, {longitude.toFixed(6)}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div> */}
-          </div>
-
-          {/* Middle Column - Nearby Places */}
-          {/* <div className="lg:col-span-1">
-            <h4 className="font-semibold text-lg mb-3">Nearby Attractions</h4>
-            <div className="space-y-2">
-              {nearbyPlaces.map((place, index) => (
-                <div key={index} className="flex items-center gap-2 text-gray-700">
-                  <div className="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
-                  <span className="text-sm">{place}</span>
-                </div>
-              ))}
-            </div>
-          </div> */}
-
-          {/* Right Column - Getting Around */}
-          {/* <div className="lg:col-span-1">
-            <h4 className="font-semibold text-lg mb-3">Getting around</h4>
-            <div className="space-y-2 text-sm text-gray-600">
-              <div className="flex justify-between">
-                <span>Public transport</span>
-                <span className="font-medium">5 min walk</span>
-              </div>
-              <div className="flex justify-between">
-                <span>City center</span>
-                <span className="font-medium">15 min drive</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Airport</span>
-                <span className="font-medium">30 min drive</span>
-              </div>
-            </div>
-          </div> */}
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { X, CheckCircle, Calendar, User, Phone, MapPin, Utensils, Star, Shield, Clock } from 'lucide-react';
+import { X, CheckCircle, Calendar, User, Phone, MapPin, Utensils, Star, Shield, Clock, CreditCard, Download } from 'lucide-react';
 import { formatDate } from '../../utils/locations/locationUitls';
 import { useState, useEffect } from 'react';
 
@@ -18,21 +18,43 @@ const BookingModal = ({
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [bookingData, setBookingData] = useState(null);
   const [bookedDates, setBookedDates] = useState([]);
+  const [paymentStep, setPaymentStep] = useState('booking');
+  const [razorpayOrder, setRazorpayOrder] = useState(null);
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
+
   const API_BASE_URL = import.meta.env.VITE_API_CONNECTION_HOST;
+  const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID;
+
+  // Load Razorpay script
+  useEffect(() => {
+    const loadRazorpay = () => {
+      return new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.onload = () => resolve(true);
+        script.onerror = () => resolve(false);
+        document.body.appendChild(script);
+      });
+    };
+
+    if (showBookingModal) {
+      loadRazorpay();
+    }
+  }, [showBookingModal]);
 
   // Fetch booked dates when modal opens
   useEffect(() => {
     if (showBookingModal && location?._id) {
       fetchBookedDates();
-      // Reset confirmation state when modal opens
       setBookingConfirmed(false);
       setBookingData(null);
+      setPaymentStep('booking');
     }
   }, [showBookingModal, location]);
 
   const fetchBookedDates = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/bookings/dates/${location._id}`);
+      const response = await fetch(`${API_BASE_URL}/bookings/dates/${location._id}`);
       const result = await response.json();
       if (result.success) {
         setBookedDates(result.bookedDates);
@@ -42,12 +64,45 @@ const BookingModal = ({
     }
   };
 
-  const handleSubmit = async (e) => {
+  const calculateTotalPrice = () => {
+    const nights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+    const basePrice = location?.pricing?.pricePerAdult || location?.basePrice || 1000;
+    const adultPrice = (basePrice * adults * nights);
+    const kidPrice = (location?.pricing?.pricePerKid || 500) * kids * nights;
+    const foodCharge = bookingForm.food ? (adults + kids) * 500 * nights : 0;
+    
+    return adultPrice + kidPrice + foodCharge;
+  };
+
+  // PDF Download Function
+  const downloadPDF = async (bookingId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/download-pdf`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to download PDF');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `booking-confirmation-${bookingId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('PDF download failed:', error);
+      alert('Failed to download PDF. Please try again.');
+    }
+  };
+
+  const handleBookingSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     
     try {
-      // Prepare booking data
       const bookingPayload = {
         locationId: location._id,
         checkInDate: checkInDate.toISOString(),
@@ -59,11 +114,14 @@ const BookingModal = ({
         kids: kids,
         withFood: bookingForm.food,
         pricing: {
+          pricePerAdult: location?.pricing?.pricePerAdult || 1000,
+          pricePerKid: location?.pricing?.pricePerKid || 500,
+          extraPersonCharge: location?.pricing?.extraPersonCharge || 0,
           totalPrice: calculateTotalPrice()
         }
       };
 
-      const response = await fetch(`${API_BASE_URL}/api/bookings`, {
+      const response = await fetch(`${API_BASE_URL}/bookings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -74,9 +132,9 @@ const BookingModal = ({
       const result = await response.json();
 
       if (result.success) {
-        setBookingConfirmed(true);
         setBookingData(result.booking);
-        await fetchBookedDates();
+        await createPaymentOrder(result.booking._id);
+        setPaymentStep('payment');
       } else {
         alert(result.error || 'Booking failed. Please try again.');
       }
@@ -88,11 +146,129 @@ const BookingModal = ({
     }
   };
 
-  const calculateTotalPrice = () => {
-    const nights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
-    const basePrice = location?.basePrice || 1000;
-    const foodCharge = bookingForm.food ? (adults + kids) * 500 * nights : 0;
-    return (basePrice * nights) + foodCharge;
+  const createPaymentOrder = async (bookingId) => {
+    try {
+      const totalAmount = calculateTotalPrice();
+      
+      const response = await fetch(`${API_BASE_URL}/payments/create-order`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bookingId: bookingId,
+          amount: totalAmount,
+          currency: 'INR',
+          userEmail: bookingForm.email || '',
+          userPhone: bookingForm.phone
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setRazorpayOrder(result);
+        return result;
+      } else {
+        throw new Error(result.error || 'Failed to create payment order');
+      }
+    } catch (error) {
+      console.error('Payment order creation error:', error);
+      alert('Payment initialization failed. Please try again.');
+      throw error;
+    }
+  };
+
+  const initiateRazorpayPayment = () => {
+    if (!razorpayOrder || !window.Razorpay) {
+      alert('Payment system not ready. Please try again.');
+      return;
+    }
+
+    setPaymentProcessing(true);
+
+    const options = {
+      key: RAZORPAY_KEY_ID,
+      amount: razorpayOrder.order.amount,
+      currency: razorpayOrder.order.currency,
+      name: 'Your Resort Name',
+      description: `Booking for ${location.name}`,
+      image: '/logo.png',
+      order_id: razorpayOrder.order.id,
+      handler: async function (response) {
+        await verifyPayment(response);
+      },
+      prefill: {
+        name: bookingForm.name,
+        contact: bookingForm.phone,
+        email: bookingForm.email || '',
+      },
+      notes: {
+        bookingId: bookingData._id,
+        location: location.name
+      },
+      theme: {
+        color: '#4F46E5'
+      },
+      modal: {
+        ondismiss: function() {
+          setPaymentProcessing(false);
+        }
+      }
+    };
+
+    const razorpayInstance = new window.Razorpay(options);
+    razorpayInstance.open();
+  };
+
+  const verifyPayment = async (paymentResponse) => {
+    try {
+      const verifyResponse = await fetch(`${API_BASE_URL}/payments/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          razorpay_order_id: paymentResponse.razorpay_order_id,
+          razorpay_payment_id: paymentResponse.razorpay_payment_id,
+          razorpay_signature: paymentResponse.razorpay_signature,
+          bookingId: bookingData._id
+        }),
+      });
+
+      const result = await verifyResponse.json();
+
+      if (result.success) {
+        setPaymentStep('confirmed');
+        setBookingConfirmed(true);
+        await fetchBookedDates();
+      } else {
+        alert('Payment verification failed: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Payment verification error:', error);
+      alert('Payment verification failed. Please contact support.');
+    } finally {
+      setPaymentProcessing(false);
+    }
+  };
+
+  const handlePaymentFailure = async (error) => {
+    try {
+      await fetch(`${API_BASE_URL}/payments/failure`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bookingId: bookingData._id,
+          razorpayOrderId: razorpayOrder?.order?.id,
+          error: error.toString()
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to record payment failure:', err);
+    }
   };
 
   const getBookedDatesInfo = () => {
@@ -121,61 +297,87 @@ const BookingModal = ({
     setShowBookingModal(false);
     setBookingConfirmed(false);
     setBookingData(null);
+    setPaymentStep('booking');
+    setRazorpayOrder(null);
   };
 
-  // Confirmation View
-  if (bookingConfirmed && bookingData) {
+  // Payment View
+  if (paymentStep === 'payment' && bookingData) {
     return (
-      <div className="fixed inset-0 backdrop-blur-md bg-black/40 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full mx-auto transform transition-all duration-300 scale-100">
-          <div className="p-8">
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-md mx-auto">
+          <div className="p-4 sm:p-6">
             <div className="text-center">
-              <div className="flex justify-center mb-6">
+              <div className="flex justify-center mb-4">
                 <div className="relative">
-                  <div className="absolute inset-0 bg-green-100 rounded-full animate-ping"></div>
-                  <CheckCircle className="h-24 w-24 text-green-500 relative z-10" />
+                  <div className="absolute inset-0 bg-blue-100 rounded-full animate-pulse"></div>
+                  <CreditCard className="h-12 w-12 text-blue-600 relative z-10" />
                 </div>
               </div>
               
-              <h3 className="text-3xl font-bold text-gray-900 mb-3">
-                Booking Confirmed!
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                Complete Payment
               </h3>
               
-              <p className="text-gray-600 mb-8 text-lg leading-relaxed">
-                Your booking has been successfully submitted. We'll contact you shortly to confirm the details.
+              <p className="text-gray-600 mb-4 text-sm">
+                Secure payment processed by Razorpay
               </p>
 
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-6 mb-6 text-left">
-                <div className="space-y-4">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 text-left">
+                <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Booking ID:</span>
-                    <span className="font-semibold bg-green-100 px-3 py-1 rounded-lg text-green-800">#{bookingData._id?.slice(-8)}</span>
+                    <span className="text-gray-600 text-xs">Booking ID:</span>
+                    <span className="font-semibold bg-blue-100 px-2 py-1 rounded text-blue-800 text-xs">
+                      #{bookingData._id?.slice(-8)}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Location:</span>
-                    <span className="font-medium">{location.name}</span>
+                    <span className="text-gray-600 text-xs">Location:</span>
+                    <span className="font-medium text-xs truncate ml-2">{location.name}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Check-in:</span>
-                    <span className="font-medium">{formatDate(checkInDate)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Check-out:</span>
-                    <span className="font-medium">{formatDate(checkOutDate)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Total Amount:</span>
-                    <span className="font-bold text-green-600 text-xl">₹{calculateTotalPrice().toLocaleString()}</span>
+                  <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                    <span className="text-gray-600 font-semibold text-sm">Amount:</span>
+                    <span className="font-bold text-blue-600 text-base">
+                      ₹{calculateTotalPrice().toLocaleString()}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              <button
-                onClick={handleCloseModal}
-                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-4 rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-              >
-                Close
-              </button>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={initiateRazorpayPayment}
+                  disabled={paymentProcessing}
+                  className="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+                >
+                  {paymentProcessing ? (
+                    <>
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard size={16} />
+                      Pay Now
+                    </>
+                  )}
+                </button>
+                
+                <button
+                  onClick={() => setPaymentStep('booking')}
+                  className="w-full bg-gray-500 text-white font-semibold py-3 rounded-lg hover:bg-gray-600 transition-all duration-300 text-sm"
+                  disabled={paymentProcessing}
+                >
+                  Back to Booking
+                </button>
+              </div>
+
+              <div className="mt-3 text-center">
+                <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
+                  <Shield className="w-3 h-3 text-green-500" />
+                  <span className="text-xs">Secure SSL Encryption</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -183,210 +385,336 @@ const BookingModal = ({
     );
   }
 
-  // Original Booking Form View
+  // Confirmation View
+  if (paymentStep === 'confirmed' && bookingData) {
+    return (
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-md mx-auto">
+          <div className="p-4 sm:p-6">
+            <div className="text-center">
+              <div className="flex justify-center mb-4">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-green-100 rounded-full animate-ping opacity-75"></div>
+                  <CheckCircle className="h-12 w-12 text-green-500 relative z-10" />
+                </div>
+              </div>
+              
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                Booking Confirmed!
+              </h3>
+              
+              <p className="text-gray-600 mb-4 text-sm">
+                Your booking and payment have been successfully processed.
+                {bookingForm.email && (
+                  <span className="block text-green-600 font-medium mt-1 text-xs">
+                    Confirmation sent to {bookingForm.email}
+                  </span>
+                )}
+              </p>
+
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 text-left">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 text-xs">Booking ID:</span>
+                    <span className="font-semibold bg-green-100 px-2 py-1 rounded text-green-800 text-xs">
+                      #{bookingData._id?.slice(-8)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 text-xs">Location:</span>
+                    <span className="font-medium text-xs truncate ml-2">{location.name}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 text-xs">Check-in:</span>
+                    <span className="font-medium text-xs">{formatDate(checkInDate)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 text-xs">Check-out:</span>
+                    <span className="font-medium text-xs">{formatDate(checkOutDate)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 text-xs">Guests:</span>
+                    <span className="font-medium text-xs">{adults} adults, {kids} kids</span>
+                  </div>
+                  {bookingForm.food && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 text-xs">Food Service:</span>
+                      <span className="font-medium text-green-600 text-xs">Included</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                    <span className="text-gray-600 font-semibold text-sm">Total Paid:</span>
+                    <span className="font-bold text-green-600 text-base">
+                      ₹{calculateTotalPrice().toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 mb-3">
+                <button
+                  onClick={() => downloadPDF(bookingData._id)}
+                  className="flex-1 bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition-all duration-300 flex items-center justify-center gap-2 text-sm shadow-lg hover:shadow-xl"
+                >
+                  <Download size={16} />
+                  Download PDF
+                </button>
+              </div>
+
+              <button
+                onClick={handleCloseModal}
+                className="w-full bg-green-600 text-white font-semibold py-3 rounded-lg hover:bg-green-700 transition-all duration-300 shadow-lg hover:shadow-xl text-sm"
+              >
+                Close
+              </button>
+
+              <div className="mt-3 text-center">
+                <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
+                  <CheckCircle className="w-3 h-3 text-green-500" />
+                  <span className="text-xs">Booking confirmed • PDF available</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!showBookingModal) return null;
 
   return (
-    <div className="fixed inset-0 backdrop-blur-md bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full mx-auto transform transition-all duration-300 scale-100">
-        {/* Header */}
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-white to-gray-50 rounded-t-3xl">
-          <div>
-            <h3 className="text-2xl font-bold text-gray-900">Complete Booking</h3>
-            <p className="text-gray-500 text-sm mt-1 flex items-center gap-1">
-              <Star className="w-4 h-4 text-yellow-400 fill-current" />
-              {location.rating || '4.8'} • {location.name}
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl mx-auto max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header - Compact */}
+        <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white sticky top-0 z-10">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-bold text-gray-900">Complete Booking</h3>
+            <p className="text-gray-500 text-xs mt-1 flex items-center gap-1 truncate">
+              <Star className="w-3 h-3 text-yellow-400 fill-current flex-shrink-0" />
+              <span className="truncate">{location.rating || '4.8'} • {location.name}</span>
             </p>
           </div>
           <button 
             onClick={handleCloseModal}
-            className="p-3 hover:bg-gray-100 rounded-xl transition-all duration-200 group"
+            className="p-1 hover:bg-gray-100 rounded transition-all duration-200 group flex-shrink-0 ml-2"
           >
-            <X size={20} className="text-gray-400 group-hover:text-gray-600" />
+            <X size={18} className="text-gray-500 group-hover:text-gray-700" />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6">
-          {/* Booking Conflict Warning */}
-          {bookingConflict.hasConflict && (
-            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 mb-6">
-              <div className="flex items-center gap-3">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center">
-                    <span className="text-white text-sm font-bold">!</span>
+        {/* Content - Optimized for no scrolling */}
+        <div className="flex-1 overflow-auto">
+          <div className="p-4">
+            {/* Booking Conflict Warning - Compact */}
+            {bookingConflict.hasConflict && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                <div className="flex items-start gap-2">
+                  <div className="flex-shrink-0 mt-0.5">
+                    <div className="w-4 h-4 bg-yellow-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">!</span>
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-yellow-800 font-semibold text-xs mb-1">
+                      Date Availability Notice
+                    </h4>
+                    <p className="text-yellow-700 text-xs">
+                      Some dates in your selection may be booked. We'll confirm availability within 24 hours.
+                    </p>
                   </div>
                 </div>
-                <div className="flex-1">
-                  <h4 className="text-amber-800 font-semibold text-sm mb-1">
-                    Date Availability Notice
+              </div>
+            )}
+
+            <div className="flex flex-col lg:flex-row gap-4">
+              {/* Left Column - Form - Compact */}
+              <div className="flex-1">
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <User className="w-4 h-4 text-blue-600" />
+                    Personal Information
                   </h4>
-                  <p className="text-amber-700 text-sm">
-                    Some dates in your selection may be booked. We'll confirm availability within 24 hours.
-                  </p>
+                  
+                  <form onSubmit={handleBookingSubmit} className="space-y-3">
+                    <div className="grid grid-cols-1 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Full Name *
+                        </label>
+                        <input
+                          type="text"
+                          name="name"
+                          value={bookingForm.name}
+                          onChange={onInputChange}
+                          required
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white text-sm"
+                          placeholder="Enter your full name"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Phone Number *
+                          </label>
+                          <input
+                            type="tel"
+                            name="phone"
+                            value={bookingForm.phone}
+                            onChange={onInputChange}
+                            required
+                            pattern="[0-9]{10}"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white text-sm"
+                            placeholder="10-digit number"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Email Address
+                          </label>
+                          <input
+                            type="email"
+                            name="email"
+                            value={bookingForm.email || ''}
+                            onChange={onInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white text-sm"
+                            placeholder="your@email.com"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Address *
+                        </label>
+                        <textarea
+                          name="address"
+                          value={bookingForm.address}
+                          onChange={onInputChange}
+                          required
+                          rows={2}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white text-sm resize-none"
+                          placeholder="Enter your complete address"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Confirmation PDF will be sent to your email
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2 p-3 bg-blue-50 rounded border border-blue-200">
+                      <input
+                        type="checkbox"
+                        name="food"
+                        checked={bookingForm.food}
+                        onChange={onInputChange}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-0.5 flex-shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <label className="text-xs font-medium text-gray-700 block">
+                          Include food service
+                        </label>
+                        <p className="text-xs text-gray-600 mt-1">
+                          +₹500 per person per day
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard size={16} />
+                          Proceed to Payment
+                        </>
+                      )}
+                    </button>
+                  </form>
                 </div>
               </div>
-            </div>
-          )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Column - Form */}
-            <div className="lg:col-span-2 space-y-6">
-              <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-2xl p-6">
-                <h4 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-                  <User className="w-5 h-5 text-blue-600" />
-                  Personal Information
-                </h4>
-                
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Full Name *
-                      </label>
-                      <input
-                        type="text"
-                        name="name"
-                        value={bookingForm.name}
-                        onChange={onInputChange}
-                        required
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                        placeholder="Enter your full name"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Phone Number *
-                      </label>
-                      <input
-                        type="tel"
-                        name="phone"
-                        value={bookingForm.phone}
-                        onChange={onInputChange}
-                        required
-                        pattern="[0-9]{10}"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                        placeholder="10-digit number"
-                      />
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Address *
-                      </label>
-                      <textarea
-                        name="address"
-                        value={bookingForm.address}
-                        onChange={onInputChange}
-                        required
-                        rows={2}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 resize-none"
-                        placeholder="Enter your complete address"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                    <input
-                      type="checkbox"
-                      name="food"
-                      checked={bookingForm.food}
-                      onChange={onInputChange}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                      <Utensils size={16} className="text-blue-600" />
-                      Include food service (+₹500 per person per day)
-                    </label>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-4 rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <Shield size={20} />
-                        Confirm Booking
-                      </>
-                    )}
-                  </button>
-                </form>
-              </div>
-            </div>
-
-            {/* Right Column - Summary */}
-            <div className="lg:col-span-1 space-y-6">
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-6">
-                <h4 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-blue-600" />
-                  Booking Summary
-                </h4>
-                
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center pb-3 border-b border-blue-100">
-                    <span className="text-gray-600">Dates</span>
-                    <span className="font-semibold text-right">
-                      {formatDate(checkInDate)} - {formatDate(checkOutDate)}
-                    </span>
-                  </div>
+              {/* Right Column - Summary - Compact */}
+              <div className="lg:w-72 flex-shrink-0">
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-blue-600" />
+                    Booking Summary
+                  </h4>
                   
-                  <div className="flex justify-between items-center pb-3 border-b border-blue-100">
-                    <span className="text-gray-600">Duration</span>
-                    <span className="font-semibold">
-                      {Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24))} nights
-                    </span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center pb-3 border-b border-blue-100">
-                    <span className="text-gray-600">Guests</span>
-                    <span className="font-semibold">
-                      {adults + kids} {adults + kids === 1 ? 'person' : 'people'}
-                    </span>
-                  </div>
-
-                  {bookingForm.food && (
-                    <div className="flex justify-between items-center pb-3 border-b border-blue-100">
-                      <span className="text-gray-600">Food Service</span>
-                      <span className="font-semibold text-green-600">Included</span>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center pb-2 border-b border-gray-200">
+                      <span className="text-gray-600 text-xs">Dates</span>
+                      <span className="font-medium text-right text-xs">
+                        {formatDate(checkInDate)} - {formatDate(checkOutDate)}
+                      </span>
                     </div>
-                  )}
-
-                  <div className="pt-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-gray-600">Base Price</span>
-                      <span>₹{(location?.basePrice || 1000) * Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24))}</span>
+                    
+                    <div className="flex justify-between items-center pb-2 border-b border-gray-200">
+                      <span className="text-gray-600 text-xs">Duration</span>
+                      <span className="font-medium text-xs">
+                        {Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24))} nights
+                      </span>
                     </div>
+                    
+                    <div className="flex justify-between items-center pb-2 border-b border-gray-200">
+                      <span className="text-gray-600 text-xs">Guests</span>
+                      <span className="font-medium text-xs">
+                        {adults} adults, {kids} kids
+                      </span>
+                    </div>
+
                     {bookingForm.food && (
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-gray-600">Food Charges</span>
-                        <span>₹{(adults + kids) * 500 * Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24))}</span>
+                      <div className="flex justify-between items-center pb-2 border-b border-gray-200">
+                        <span className="text-gray-600 text-xs">Food Service</span>
+                        <span className="font-medium text-green-600 text-xs">Included</span>
                       </div>
                     )}
-                    <div className="flex justify-between items-center pt-3 border-t border-blue-200">
-                      <span className="text-lg font-bold text-gray-900">Total</span>
-                      <span className="text-2xl font-bold text-blue-600">₹{calculateTotalPrice().toLocaleString()}</span>
+
+                    <div className="pt-2">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-gray-600 text-xs">Base Price</span>
+                        <span className="text-xs">₹{((location?.pricing?.pricePerAdult || 1000) * adults * Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24))).toLocaleString()}</span>
+                      </div>
+                      {kids > 0 && (
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-gray-600 text-xs">Kids Price</span>
+                          <span className="text-xs">₹{((location?.pricing?.pricePerKid || 500) * kids * Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24))).toLocaleString()}</span>
+                        </div>
+                      )}
+                      {bookingForm.food && (
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-gray-600 text-xs">Food Charges</span>
+                          <span className="text-xs">₹{((adults + kids) * 500 * Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24))).toLocaleString()}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center pt-2 border-t border-gray-300">
+                        <span className="text-sm font-bold text-gray-900">Total</span>
+                        <span className="text-base font-bold text-blue-600">₹{calculateTotalPrice().toLocaleString()}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Trust Indicators */}
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <Shield className="w-5 h-5 text-green-600" />
-                  <span className="font-semibold text-green-800">Secure Booking</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Clock className="w-5 h-5 text-green-600" />
-                  <span className="text-sm text-green-700">Confirmation within 24 hours</span>
+                  {/* Trust Indicators - Compact */}
+                  <div className="mt-3 bg-white border border-gray-200 rounded p-2">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Shield className="w-3 h-3 text-green-600" />
+                      <span className="font-medium text-green-800 text-xs">Secure Payment</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-green-700">
+                      <CreditCard className="w-3 h-3 text-green-600" />
+                      <span>Powered by Razorpay</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

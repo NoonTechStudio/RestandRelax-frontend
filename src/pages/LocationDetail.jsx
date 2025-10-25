@@ -77,8 +77,8 @@ function LocationDetail() {
         setError(null);
         
         const [locationRes, reviewsRes] = await Promise.all([
-          axios.get(`${API_BASE_URL}/api/locations/${id}`),
-          axios.get(`${API_BASE_URL}/api/reviews/location/${id}`)
+          axios.get(`${API_BASE_URL}/locations/${id}`),
+          axios.get(`${API_BASE_URL}/reviews/location/${id}`)
         ]);
 
         setLocation(locationRes.data);
@@ -179,7 +179,7 @@ function LocationDetail() {
 
       console.log('Booking data:', bookingData);
       // NOTE: Placeholder for actual API call
-      // const response = await axios.post(`${API_BASE_URL}/api/bookings`, bookingData);
+      // const response = await axios.post(`${API_BASE_URL}/bookings`, bookingData);
       
       alert('Booking submitted successfully! We will contact you shortly.');
       setShowBookingModal(false);
@@ -314,7 +314,14 @@ function LocationDetail() {
         </div>
 
         {/* Images Section */}
-        <ImageGallery locationId={id} images={images} />
+<ImageGallery 
+  locationId={location._id}
+  images={{
+    mainImage: location.images[0], // Pass the object, not processed URL
+    otherImages: location.images?.slice(1, 5), // Pass objects array
+    allImages: location.images // Pass original array
+  }}
+/>
         
         <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-10 lg:gap-12">
           
