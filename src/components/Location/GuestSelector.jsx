@@ -1,4 +1,5 @@
 import { ChevronRight } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 const GuestSelector = ({ 
   adults, 
@@ -9,6 +10,7 @@ const GuestSelector = ({
   maxCapacity 
 }) => {
   const currentTotal = adults + kids;
+  const dropdownRef = useRef(null);
 
   const handleGuestChange = (type, operation) => {
     if (type === 'adults') {
@@ -26,10 +28,24 @@ const GuestSelector = ({
     }
   };
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowGuestSelector(false);
+      }
+    };
+
+    if (showGuestSelector) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showGuestSelector, setShowGuestSelector]);
+
   return (
-    <div className="border border-gray-300 rounded-lg p-3 mb-4 relative">
+    <div className="relative" ref={dropdownRef}>
       <div 
-        className="flex justify-between items-center cursor-pointer"
+        className="flex justify-between items-center cursor-pointer p-3 border-t border-gray-300"
         onClick={() => setShowGuestSelector(!showGuestSelector)}
       >
         <div>
@@ -45,11 +61,14 @@ const GuestSelector = ({
             </div>
           )}
         </div>
-        <ChevronRight size={20} />
+        <ChevronRight 
+          size={20} 
+          className={`transition-transform ${showGuestSelector ? 'rotate-90' : ''}`}
+        />
       </div>
 
       {showGuestSelector && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-10 p-4">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-xl z-50 p-4">
           <div className="flex justify-between items-center mb-4">
             <div>
               <div className="font-medium">Adults</div>
@@ -57,17 +76,23 @@ const GuestSelector = ({
             </div>
             <div className="flex items-center gap-3">
               <button 
-                onClick={() => handleGuestChange('adults', 'decrease')}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleGuestChange('adults', 'decrease');
+                }}
                 disabled={adults <= 1}
-                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:border-gray-400 transition-colors"
               >
                 -
               </button>
               <span className="font-medium w-6 text-center">{adults}</span>
               <button 
-                onClick={() => handleGuestChange('adults', 'increase')}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleGuestChange('adults', 'increase');
+                }}
                 disabled={currentTotal >= maxCapacity}
-                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:border-gray-400 transition-colors"
               >
                 +
               </button>
@@ -81,17 +106,23 @@ const GuestSelector = ({
             </div>
             <div className="flex items-center gap-3">
               <button 
-                onClick={() => handleGuestChange('kids', 'decrease')}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleGuestChange('kids', 'decrease');
+                }}
                 disabled={kids <= 0}
-                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:border-gray-400 transition-colors"
               >
                 -
               </button>
               <span className="font-medium w-6 text-center">{kids}</span>
               <button 
-                onClick={() => handleGuestChange('kids', 'increase')}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleGuestChange('kids', 'increase');
+                }}
                 disabled={currentTotal >= maxCapacity}
-                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:border-gray-400 transition-colors"
               >
                 +
               </button>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Filter, X, Heart, Share2, ZoomIn, Image, ArrowRight } from 'lucide-react';
+import { MapPin, Filter, X, Heart, Share2, ZoomIn, Image, ArrowRight, Play } from 'lucide-react';
 import axios from 'axios';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -11,24 +11,30 @@ const API_BASE_URL = import.meta.env.VITE_API_CONNECTION_HOST;
 
 const MemoriesGallery = () => {
   const [locations, setLocations] = useState([]);
-  const [allImages, setAllImages] = useState([]);
-  const [filteredImages, setFilteredImages] = useState([]);
+  const [allMedia, setAllMedia] = useState([]); // Changed from allImages to allMedia
+  const [filteredMedia, setFilteredMedia] = useState([]); // Changed from filteredImages to filteredMedia
   const [selectedLocation, setSelectedLocation] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedMedia, setSelectedMedia] = useState(null); // Changed from selectedImage to selectedMedia
   const [showLimit, setShowLimit] = useState(12);
-  const [failedImages, setFailedImages] = useState(new Set()); // Track failed image loads
+  const [failedMedia, setFailedMedia] = useState(new Set()); // Track failed media loads
 
-  // Function to construct proper image URL
-  const getImageUrl = (image) => {
-    if (!image) return null;
+  // Function to check if media is a video
+  const isVideo = (media) => {
+    const path = media.fullUrl || media.url || media.path || media.webpPath || media.src || '';
+    return path.match(/\.(mp4|mov|avi|wmv|flv|webm|mkv)$/i) !== null;
+  };
+
+  // Function to construct proper media URL
+  const getMediaUrl = (media) => {
+    if (!media) return null;
     
-    // Try different possible image path properties
-    const path = image.fullUrl || image.url || image.path || image.webpPath || image.src;
+    // Try different possible media path properties
+    const path = media.fullUrl || media.url || media.path || media.webpPath || media.src;
     
     if (!path) {
-      console.warn('No image path found:', image);
+      console.warn('No media path found:', media);
       return null;
     }
     
@@ -46,18 +52,18 @@ const MemoriesGallery = () => {
     return `${API_BASE_URL}/uploads/${path}`;
   };
 
-  // Fetch locations and their images
+  // Fetch locations and their media
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        setFailedImages(new Set()); // Reset failed images
+        setFailedMedia(new Set()); // Reset failed media
         
         const locationsResponse = await axios.get(`${API_BASE_URL}/locations`);
         const locationsData = locationsResponse.data;
         setLocations(locationsData);
 
-        const imagesPromises = locationsData.map(async (location) => {
+        const mediaPromises = locationsData.map(async (location) => {
           try {
             const imagesResponse = await axios.get(`${API_BASE_URL}/locations/${location._id}`);
             const images = imagesResponse.data.images || [];
@@ -66,7 +72,8 @@ const MemoriesGallery = () => {
               ...img,
               locationId: location._id,
               locationName: location.name,
-              // Don't pre-process URL here, we'll handle it in getImageUrl
+              isVideo: isVideo(img), // Add video detection
+              // Don't pre-process URL here, we'll handle it in getMediaUrl
             }));
           } catch (imgError) {
             console.error(`Error fetching images for location ${location._id}:`, imgError);
@@ -74,16 +81,19 @@ const MemoriesGallery = () => {
           }
         });
 
-        const nestedImages = await Promise.all(imagesPromises);
-        const images = nestedImages.flat().filter(img => img);
+        const nestedMedia = await Promise.all(mediaPromises);
+        const media = nestedMedia.flat().filter(item => item);
         
-        console.log('Total images loaded:', images.length);
-        if (images.length > 0) {
-          console.log('Sample image data:', images[0]);
+        console.log('Total media loaded:', media.length);
+        console.log('Videos:', media.filter(item => item.isVideo).length);
+        console.log('Images:', media.filter(item => !item.isVideo).length);
+        
+        if (media.length > 0) {
+          console.log('Sample media data:', media[0]);
         }
         
-        setAllImages(images);
-        setFilteredImages(images.slice(0, showLimit));
+        setAllMedia(media);
+        setFilteredMedia(media.slice(0, showLimit));
         
         setLoading(false);
       } catch (err) {
@@ -96,16 +106,16 @@ const MemoriesGallery = () => {
     fetchData();
   }, []);
 
-  // Filter images when location changes or showLimit changes
+  // Filter media when location changes or showLimit changes
   useEffect(() => {
-    let imagesToFilter = allImages;
+    let mediaToFilter = allMedia;
 
     if (selectedLocation !== 'all') {
-      imagesToFilter = allImages.filter(img => img.locationId === selectedLocation);
+      mediaToFilter = allMedia.filter(media => media.locationId === selectedLocation);
     }
 
-    setFilteredImages(imagesToFilter.slice(0, showLimit));
-  }, [selectedLocation, allImages, showLimit]);
+    setFilteredMedia(mediaToFilter.slice(0, showLimit));
+  }, [selectedLocation, allMedia, showLimit]);
 
   // Handle location filter change
   const handleLocationChange = (locationId) => {
@@ -113,22 +123,22 @@ const MemoriesGallery = () => {
     setShowLimit(12);
   };
 
-  // Handle image load error
-  const handleImageError = (imageId, imageUrl) => {
-    console.error(`Failed to load image: ${imageUrl}`);
-    setFailedImages(prev => new Set([...prev, imageId]));
+  // Handle media load error
+  const handleMediaError = (mediaId, mediaUrl) => {
+    console.error(`Failed to load media: ${mediaUrl}`);
+    setFailedMedia(prev => new Set([...prev, mediaId]));
   };
 
   const loadMore = () => {
     setShowLimit(prevLimit => prevLimit + 12);
   };
 
-  const openLightbox = (image) => {
-    setSelectedImage(image);
+  const openLightbox = (media) => {
+    setSelectedMedia(media);
   };
 
   const closeLightbox = () => {
-    setSelectedImage(null);
+    setSelectedMedia(null);
   };
   
   // Loading and Error States
@@ -148,14 +158,14 @@ const MemoriesGallery = () => {
     );
   }
 
-  const hasMoreToLoad = filteredImages.length < (selectedLocation === 'all' 
-    ? allImages.length 
-    : allImages.filter(img => img.locationId === selectedLocation).length
+  const hasMoreToLoad = filteredMedia.length < (selectedLocation === 'all' 
+    ? allMedia.length 
+    : allMedia.filter(media => media.locationId === selectedLocation).length
   );
   
-  const totalImageCount = selectedLocation === 'all' 
-    ? allImages.length 
-    : allImages.filter(img => img.locationId === selectedLocation).length;
+  const totalMediaCount = selectedLocation === 'all' 
+    ? allMedia.length 
+    : allMedia.filter(media => media.locationId === selectedLocation).length;
 
   return (
     <>
@@ -189,7 +199,7 @@ const MemoriesGallery = () => {
               }`}
             >
               <Filter className="w-4 h-4 inline mr-1" />
-              All Memories ({allImages.length})
+              All Memories ({allMedia.length})
             </button>
             
             {locations.map((location) => (
@@ -208,58 +218,90 @@ const MemoriesGallery = () => {
             ))}
           </div>
           
-          {totalImageCount === 0 ? (
+          {totalMediaCount === 0 ? (
             <div className="text-center py-20 bg-white rounded-xl shadow-lg border border-gray-200">
                 <p className="text-xl text-gray-600">No memories found for this location.</p>
             </div>
           ) : (
             <>
               <div className="text-center text-gray-600 mb-6 font-medium">
-                  Showing {filteredImages.length} of {totalImageCount} memories.
+                  Showing {filteredMedia.length} of {totalMediaCount} memories.
               </div>
               
-              {/* Image Grid */}
+              {/* Media Grid */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {filteredImages.map((image, index) => {
-                  const imageUrl = getImageUrl(image);
-                  const imageId = image._id || image.id || `image-${index}`;
-                  const hasFailed = failedImages.has(imageId);
+                {filteredMedia.map((media, index) => {
+                  const mediaUrl = getMediaUrl(media);
+                  const mediaId = media._id || media.id || `media-${index}`;
+                  const hasFailed = failedMedia.has(mediaId);
+                  const isVideoFile = media.isVideo;
                   
                   return (
                     <div 
-                      key={imageId} 
+                      key={mediaId} 
                       className="group relative overflow-hidden rounded-xl shadow-lg cursor-pointer transform transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]"
-                      onClick={() => openLightbox(image)}
+                      onClick={() => openLightbox(media)}
                     >
-                      {!hasFailed && imageUrl ? (
-                        <img
-                          src={imageUrl}
-                          alt={image.title || image.locationName}
-                          className="w-full h-64 object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
-                          loading="lazy"
-                          onError={() => handleImageError(imageId, imageUrl)}
-                          onLoad={() => console.log(`✅ Image loaded: ${imageUrl}`)}
-                        />
+                      {!hasFailed && mediaUrl ? (
+                        <>
+                          {isVideoFile ? (
+                            <div className="relative w-full h-64 bg-black flex items-center justify-center">
+                              <video
+                                className="w-full h-full object-cover"
+                                preload="metadata"
+                                onError={() => handleMediaError(mediaId, mediaUrl)}
+                              >
+                                <source src={mediaUrl} type="video/mp4" />
+                                Your browser does not support the video tag.
+                              </video>
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300">
+                                  <Play className="w-6 h-6 text-black ml-1" />
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <img
+                              src={mediaUrl}
+                              alt={media.title || media.locationName}
+                              className="w-full h-64 object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
+                              loading="lazy"
+                              onError={() => handleMediaError(mediaId, mediaUrl)}
+                              onLoad={() => console.log(`✅ Media loaded: ${mediaUrl}`)}
+                            />
+                          )}
+                        </>
                       ) : (
                         <div className="w-full h-64 bg-gray-200 flex items-center justify-center">
                           <div className="text-center text-gray-500">
                             <Image className="w-8 h-8 mx-auto mb-2" />
-                            <p className="text-sm">Image not available</p>
+                            <p className="text-sm">Media not available</p>
                           </div>
                         </div>
                       )}
                       
-                      {/* Overlay for Details and Zoom */}
+                      {/* Overlay for Details and Zoom/Play */}
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-between p-4">
                           <div className="text-white">
                               <div className="flex items-center gap-1.5 mb-1">
                                   <MapPin className="w-4 h-4" />
-                                  <span className="text-sm font-semibold">{image.locationName}</span>
+                                  <span className="text-sm font-semibold">{media.locationName}</span>
                               </div>
-                              <p className="text-xs font-medium opacity-90">{image.title || 'Guest Photo'}</p>
+                              <p className="text-xs font-medium opacity-90">{media.title || 'Guest Photo'}</p>
                           </div>
-                          <ZoomIn className="w-6 h-6 text-white bg-white/20 p-1 rounded-full backdrop-blur-sm" />
+                          {isVideoFile ? (
+                            <Play className="w-6 h-6 text-white bg-white/20 p-1 rounded-full backdrop-blur-sm" />
+                          ) : (
+                            <ZoomIn className="w-6 h-6 text-white bg-white/20 p-1 rounded-full backdrop-blur-sm" />
+                          )}
                       </div>
+
+                      {/* Video Badge */}
+                      {isVideoFile && (
+                        <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded-md text-xs font-medium backdrop-blur-sm">
+                          VIDEO
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -274,7 +316,7 @@ const MemoriesGallery = () => {
                 onClick={loadMore}
                 className={`inline-flex items-center gap-2 px-10 py-3 text-lg font-bold rounded-xl text-white bg-[#008DDA] hover:bg-[#0278b8] transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5`}
               >
-                Load More Memories ({totalImageCount - filteredImages.length} left)
+                Load More Memories ({totalMediaCount - filteredMedia.length} left)
                 <ArrowRight className="w-5 h-5" />
               </button>
             </div>
@@ -282,7 +324,7 @@ const MemoriesGallery = () => {
         </div>
 
         {/* Lightbox Modal */}
-        {selectedImage && (
+        {selectedMedia && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="relative max-w-6xl max-h-full">
               
@@ -295,46 +337,70 @@ const MemoriesGallery = () => {
               </button>
               
               {(() => {
-                const lightboxImageUrl = getImageUrl(selectedImage);
-                return lightboxImageUrl ? (
-                  <img
-                    src={lightboxImageUrl}
-                    alt={selectedImage.alt || selectedImage.title || selectedImage.locationName}
-                    className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
-                    onError={(e) => {
-                      console.error('Lightbox image failed to load:', lightboxImageUrl);
-                      e.target.style.display = 'none';
-                      // Show fallback in lightbox
-                      const container = e.target.parentElement;
-                      container.innerHTML = `
-                        <div class="w-96 h-96 bg-gray-200 flex items-center justify-center rounded-lg">
-                          <div class="text-center text-gray-500">
-                            <Image class="w-12 h-12 mx-auto mb-4" />
-                            <p class="text-lg">Image not available</p>
+                const lightboxMediaUrl = getMediaUrl(selectedMedia);
+                const isVideoFile = selectedMedia.isVideo;
+                
+                return lightboxMediaUrl ? (
+                  isVideoFile ? (
+                    <div className="max-w-full max-h-[90vh]">
+                      <video
+                        controls
+                        autoPlay
+                        className="max-w-full max-h-[90vh] rounded-lg shadow-2xl"
+                        onError={(e) => {
+                          console.error('Lightbox video failed to load:', lightboxMediaUrl);
+                          handleVideoError(e);
+                        }}
+                      >
+                        <source src={lightboxMediaUrl} type="video/mp4" />
+                        Your browser does not support the video tag.
+                      </video>
+                    </div>
+                  ) : (
+                    <img
+                      src={lightboxMediaUrl}
+                      alt={selectedMedia.alt || selectedMedia.title || selectedMedia.locationName}
+                      className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                      onError={(e) => {
+                        console.error('Lightbox image failed to load:', lightboxMediaUrl);
+                        e.target.style.display = 'none';
+                        // Show fallback in lightbox
+                        const container = e.target.parentElement;
+                        container.innerHTML = `
+                          <div class="w-96 h-96 bg-gray-200 flex items-center justify-center rounded-lg">
+                            <div class="text-center text-gray-500">
+                              <Image class="w-12 h-12 mx-auto mb-4" />
+                              <p class="text-lg">Media not available</p>
+                            </div>
                           </div>
-                        </div>
-                      `;
-                    }}
-                  />
+                        `;
+                      }}
+                    />
+                  )
                 ) : (
                   <div className="w-96 h-96 bg-gray-200 flex items-center justify-center rounded-lg">
                     <div className="text-center text-gray-500">
                       <Image className="w-12 h-12 mx-auto mb-4" />
-                      <p className="text-lg">Image not available</p>
+                      <p className="text-lg">Media not available</p>
                     </div>
                   </div>
                 );
               })()}
               
-              {/* Image Footer/Details */}
+              {/* Media Footer/Details */}
               <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/70 to-transparent">
                 <div className="flex items-center gap-3 mb-2">
                   <MapPin className="w-5 h-5 text-white" />
-                  <span className="font-bold text-xl text-white">{selectedImage.locationName}</span>
+                  <span className="font-bold text-xl text-white">{selectedMedia.locationName}</span>
+                  {selectedMedia.isVideo && (
+                    <span className="bg-white/20 text-white px-2 py-1 rounded-md text-sm font-medium backdrop-blur-sm">
+                      VIDEO
+                    </span>
+                  )}
                 </div>
-                {(selectedImage.title || selectedImage.alt) && (
+                {(selectedMedia.title || selectedMedia.alt) && (
                   <p className="text-white/90 text-sm">
-                    {selectedImage.title || selectedImage.alt}
+                    {selectedMedia.title || selectedMedia.alt}
                   </p>
                 )}
               </div>

@@ -32,6 +32,7 @@ const Calenderdates = ({
         // Backend now only returns paid bookings with checkout date included
         setBookedDates(result.bookedDates);
       }
+      console.log(result);
     } catch (error) {
       console.error('Error fetching booked dates:', error);
     } finally {
